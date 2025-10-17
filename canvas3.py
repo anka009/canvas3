@@ -64,7 +64,7 @@ def safe_display(img):
         elif img.shape[-1] == 4:
             img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
         img_uint8 = np.clip(img,0,255).astype(np.uint8)
-        st.image(img_uint8, use_container_width=True)
+        st.image(img_uint8, use_column_width=True)
     except Exception as e:
         st.error(f"Fehler beim Anzeigen des Bildes: {e}")
 
