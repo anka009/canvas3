@@ -38,7 +38,7 @@ def apply_hue_wrap(hsv_img,hmin,hmax,smin,smax,vmin,vmax):
     if hmin <= hmax:
         mask = cv2.inRange(hsv_img, np.array([hmin,smin,vmin]), np.array([hmax,smax,vmax]))
     else:
-        mask_lo = cv2.inRange(hsv_img, np.array([0,smin,vmin]), np.array([hmax,smax,vmax]))
+        mask_lo = cv2.inRange(hsv_img, np.array([0,smin,vmin]), np.array([hmax,smax,vmin]))
         mask_hi = cv2.inRange(hsv_img, np.array([hmin,smin,vmin]), np.array([180,smax,vmax]))
         mask = cv2.bitwise_or(mask_lo, mask_hi)
     return mask
@@ -68,7 +68,7 @@ def safe_display(img):
     except Exception as e:
         st.error(f"Fehler beim Anzeigen des Bildes: {e}")
 
-# -------------------- Auto-Erkennung (Basis) --------------------
+# -------------------- Auto-Erkennung --------------------
 def auto_detect(image_disp, min_area=50, blur_kernel=5):
     if blur_kernel % 2 == 0:
         blur_kernel += 1
@@ -93,7 +93,19 @@ def auto_detect(image_disp, min_area=50, blur_kernel=5):
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         st.session_state.hema_points = get_centers(mask,min_area)
 
-    st.success("Auto-Erkennung abgeschlossen!")
+# -------------------- Punkte auf Bild zeichnen --------------------
+def draw_points(image_disp):
+    marked_disp = image_disp.copy()
+    for points_list,color in [
+        (st.session_state.aec_points,(255,0,0)),
+        (st.session_state.hema_points,(0,0,255)),
+        (st.session_state.manual_aec,(255,165,0)),
+        (st.session_state.manual_hema,(128,0,128)),
+        (st.session_state.bg_points,(255,255,0))
+    ]:
+        for (x,y) in points_list:
+            cv2.circle(marked_disp,(x,y),6,color,2)
+    return marked_disp
 
 # -------------------- Haupt-App --------------------
 def main():
@@ -129,17 +141,6 @@ def main():
         elif hema_mode: st.session_state.hema_points.append((x,y))
         elif bg_mode: st.session_state.bg_points.append((x,y))
 
-    # -------------------- Annotation --------------------
-    marked_disp = image_disp.copy()
-    for points_list,color in [
-        (st.session_state.aec_points,(255,0,0)),
-        (st.session_state.hema_points,(0,0,255)),
-        (st.session_state.bg_points,(255,255,0))
-    ]:
-        for (x,y) in points_list:
-            cv2.circle(marked_disp,(x,y),6,color,2)
-    safe_display(marked_disp)
-
     # -------------------- Kalibrierung --------------------
     if st.button("⚡ Kalibrierung speichern"):
         st.session_state.aec_hsv = compute_hsv_range(st.session_state.aec_points, cv2.cvtColor(image_disp,cv2.COLOR_RGB2HSV))
@@ -149,15 +150,10 @@ def main():
     # -------------------- Auto-Erkennung --------------------
     if st.button("🤖 Auto-Erkennung"):
         auto_detect(image_disp)
-        # Punkte neu zeichnen
-        marked_disp = image_disp.copy()
-        for points_list,color in [
-            (st.session_state.aec_points,(255,0,0)),
-            (st.session_state.hema_points,(0,0,255))
-        ]:
-            for (x,y) in points_list:
-                cv2.circle(marked_disp,(x,y),6,color,2)
-        safe_display(marked_disp)
+
+    # -------------------- Punkte zeichnen und finale Anzeige --------------------
+    marked_disp = draw_points(image_disp)
+    safe_display(marked_disp)
 
     # -------------------- CSV Export --------------------
     all_points = (st.session_state.aec_points or []) + (st.session_state.hema_points or [])
