@@ -185,23 +185,23 @@ if result_img is not None and isinstance(result_img,np.ndarray):
     result_img_uint8 = np.clip(result_img_rgb,0,255).astype(np.uint8)
     st.markdown(f"### 🔢 Gesamt: AEC={len(all_aec)}, Hämatoxylin={len(all_hema)}")
     if result_img is not None and isinstance(result_img, np.ndarray):
-    # Graustufen → RGB
-    if len(result_img.shape) == 2:
-        result_img_rgb = cv2.cvtColor(result_img, cv2.COLOR_GRAY2RGB)
-    elif result_img.shape[-1] == 4:  # RGBA
-        result_img_rgb = cv2.cvtColor(result_img, cv2.COLOR_RGBA2RGB)
-    elif result_img.shape[-1] == 3:  # RGB
-        result_img_rgb = result_img
-    else:
-        st.error(f"Unerwartetes Bildformat: {result_img.shape}")
-        result_img_rgb = None
+        # Graustufen → RGB
+        if len(result_img.shape) == 2:
+            result_img_rgb = cv2.cvtColor(result_img, cv2.COLOR_GRAY2RGB)
+        elif result_img.shape[-1] == 4:  # RGBA
+            result_img_rgb = cv2.cvtColor(result_img, cv2.COLOR_RGBA2RGB)
+        elif result_img.shape[-1] == 3:  # RGB
+            result_img_rgb = result_img
+        else:
+            st.error(f"Unerwartetes Bildformat: {result_img.shape}")
+            result_img_rgb = None
 
-    if result_img_rgb is not None:
-        result_img_uint8 = np.clip(result_img_rgb, 0, 255).astype(np.uint8)
-        st.image(result_img_uint8, use_container_width=True)
-else:
-    st.warning("Kein gültiges Bild zum Anzeigen vorhanden.")
-    st.image(result_img_uint8,use_container_width=True)
+        if result_img_rgb is not None:
+            result_img_uint8 = np.clip(result_img_rgb, 0, 255).astype(np.uint8)
+            st.image(result_img_uint8, use_container_width=True)
+    else:
+        st.warning("Kein gültiges Bild zum Anzeigen vorhanden.")
+        st.image(result_img_uint8,use_container_width=True)
 
     # CSV Export
     df_list=[]
