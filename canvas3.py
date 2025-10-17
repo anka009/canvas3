@@ -265,8 +265,49 @@ all_hema = (st.session_state.hema_points or []) + (st.session_state.manual_hema 
 result_img = annotate_image(image_disp.copy(), st.session_state)
 result_img_uint8 = np.clip(result_img, 0, 255).astype(np.uint8)
 
-st.markdown(f"### 🔢 Gesamt: AEC={len(all_aec)}, Hämatoxylin={len(all_hema)}")
-st.image(result_img_uint8, use_container_width=True)
+# -------------------- Ergebnisanzeige --------------------
+all_aec = (st.session_state.aec_points or []) + (st.session_state.manual_aec or [])
+all_hema = (st.session_state.hema_points or []) + (st.session_state.manual_hema or [])
+
+# annotiertes Bild erzeugen
+result_img = annotate_image(image_disp.copy(), st.session_state)
+
+# Absicherung gegen leere oder ungültige Bilder
+if result_img is not None and result_img.size != 0:
+    result_img_uint8 = np.clip(result_img, 0, 255).astype(np.uint8)
+    # falls Alpha-Kanal vorhanden, nur RGB verwenden
+    if result_img_uint8.shape[-1] == 4:
+        result_img_uint8 = result_img_uint8[:, :, :3]
+
+    st.markdown(f"### 🔢 Gesamt: AEC={len(all_aec)}, Hämatoxylin={len(all_hema)}")
+    st.image(result_img_uint8, use_container_width=True)
+
+    # -------------------- CSV Export --------------------
+    df_list = []
+    for (x, y) in all_aec:
+        df_list.append({"X_display": x, "Y_display": y, "Type": "AEC"})
+    for (x, y) in all_hema:
+        df_list.append({"X_display": x, "Y_display": y, "Type": "Hämatoxylin"})
+
+    if df_list:
+        df = pd.DataFrame(df_list)
+        scale = st.session_state.disp_width / image_disp.shape[1]
+        df["X_original"] = (df["X_display"] / scale).round().astype("Int64")
+        df["Y_original"] = (df["Y_display"] / scale).round().astype("Int64")
+        df["Confidence"] = 1.0
+
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 CSV exportieren", data=csv, file_name="zellkerne.csv", mime="text/csv")
+
+        # Annotiertes PNG exportieren
+        buf = io.BytesIO()
+        pil_img = Image.fromarray(result_img_uint8, 'RGB')
+        pil_img.save(buf, format='PNG')
+        byte_im = buf.getvalue()
+        st.download_button("🖼️ Annotiertes PNG herunterladen", data=byte_im, file_name="zellkerne_annotiert.png", mime="image/png")
+        st.session_state.annot_png = byte_im
+else:
+    st.warning("Kein Bild zum Anzeigen vorhanden. Bitte lade zuerst ein Bild hoch oder markiere Zellen.")
 
 # -------------------- CSV & PNG Export --------------------
 df_list = []
