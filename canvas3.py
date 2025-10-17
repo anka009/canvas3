@@ -32,7 +32,7 @@ def compute_hsv_range(points, hsv_img, buffer_h=8, buffer_s=30, buffer_v=25):
     s_max = min(255,int(np.max(s)+buffer_s))
     v_min = max(0,int(np.min(v)-buffer_v))
     v_max = min(255,int(np.max(v)+buffer_v))
-    return (h_min,h_max,s_min,s_max,v_min,vmax)
+    return (h_min,h_max,s_min,s_max,v_min,v_max)
 
 def apply_hue_wrap(hsv_img,hmin,hmax,smin,smax,vmin,vmax):
     if hmin <= hmax:
@@ -43,7 +43,7 @@ def apply_hue_wrap(hsv_img,hmin,hmax,smin,smax,vmin,vmax):
         mask = cv2.bitwise_or(mask_lo, mask_hi)
     return mask
 
-# -------------------- Session State Setup --------------------
+# -------------------- Session State --------------------
 def init_session_state():
     keys = ["aec_points","hema_points","bg_points","manual_aec","manual_hema",
             "aec_hsv","hema_hsv","bg_hsv","last_file","disp_width"]
@@ -53,70 +53,47 @@ def init_session_state():
     if st.session_state.get("disp_width") is None:
         st.session_state.disp_width = 1400
 
-# -------------------- Bild-Upload --------------------
-def upload_image():
-    uploaded_file = st.file_uploader("🔍 Bild hochladen", type=["jpg","jpeg","png","tif","tiff"])
-    if uploaded_file is None:
-        st.info("Bitte zuerst ein Bild hochladen.")
-        st.stop()
-    image = np.array(Image.open(uploaded_file).convert("RGB"))
-    return image, uploaded_file.name
+# -------------------- Safe-Display --------------------
+def safe_display(img):
+    if img is None:
+        st.warning("Kein Bild zum Anzeigen")
+        return
+    try:
+        if len(img.shape) == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        elif img.shape[-1] == 4:
+            img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+        img_uint8 = np.clip(img,0,255).astype(np.uint8)
+        st.image(img_uint8, use_container_width=True)
+    except Exception as e:
+        st.error(f"Fehler beim Anzeigen des Bildes: {e}")
 
-# -------------------- Punktmarkierung / Canvas --------------------
-def mark_points(image_disp):
-    coords = streamlit_image_coordinates(Image.fromarray(image_disp), key="clickable_image", width=image_disp.shape[1])
-    return coords
+# -------------------- Auto-Erkennung (Basis) --------------------
+def auto_detect(image_disp, min_area=50, blur_kernel=5):
+    if blur_kernel % 2 == 0:
+        blur_kernel += 1
+    proc = cv2.convertScaleAbs(image_disp, alpha=1.0, beta=0)
+    if blur_kernel > 1:
+        proc = cv2.GaussianBlur(proc,(blur_kernel,blur_kernel),0)
+    hsv_proc = cv2.cvtColor(proc, cv2.COLOR_RGB2HSV)
 
-# -------------------- Annotate & Safe Display --------------------
-def annotate_and_display(image_disp):
-    marked_disp = image_disp.copy()
-    # Punkte zeichnen
-    for points_list,color in [
-        (st.session_state.aec_points,(255,0,0)),
-        (st.session_state.hema_points,(0,0,255)),
-        (st.session_state.manual_aec,(255,165,0)),
-        (st.session_state.manual_hema,(128,0,128)),
-        (st.session_state.bg_points,(255,255,0))
-    ]:
-        for (x,y) in points_list:
-            cv2.circle(marked_disp,(x,y),6,color,2)
-
-    # Safe-Display
-    if marked_disp is not None and isinstance(marked_disp, np.ndarray):
-        if len(marked_disp.shape)==2:
-            marked_disp = cv2.cvtColor(marked_disp,cv2.COLOR_GRAY2RGB)
-        elif marked_disp.shape[-1]==4:
-            marked_disp = cv2.cvtColor(marked_disp,cv2.COLOR_RGBA2RGB)
-        marked_disp_uint8 = np.clip(marked_disp,0,255).astype(np.uint8)
-        st.image(marked_disp_uint8, use_container_width=True)
-
-# -------------------- Auto-Erkennung (Platzhalter) --------------------
-def auto_detect(image_disp):
-    # Hier später smarte Erkennung einbauen
-    st.info("Auto-Erkennung läuft...")
-    hsv_proc = cv2.cvtColor(image_disp, cv2.COLOR_RGB2HSV)
+    # AEC
     if st.session_state.aec_hsv:
         hmin,hmax,smin,smax,vmin,vmax = st.session_state.aec_hsv
         mask = apply_hue_wrap(hsv_proc,hmin,hmax,smin,smax,vmin,vmax)
-        st.session_state.aec_points = get_centers(mask,50)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        st.session_state.aec_points = get_centers(mask,min_area)
+
+    # HEMA
     if st.session_state.hema_hsv:
         hmin,hmax,smin,smax,vmin,vmax = st.session_state.hema_hsv
         mask = apply_hue_wrap(hsv_proc,hmin,hmax,smin,smax,vmin,vmax)
-        st.session_state.hema_points = get_centers(mask,50)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        st.session_state.hema_points = get_centers(mask,min_area)
 
-# -------------------- CSV Export --------------------
-def export_results(scale):
-    all_aec = (st.session_state.aec_points or []) + (st.session_state.manual_aec or [])
-    all_hema = (st.session_state.hema_points or []) + (st.session_state.manual_hema or [])
-    df_list = []
-    for (x,y) in all_aec: df_list.append({"X_display":x,"Y_display":y,"Type":"AEC"})
-    for (x,y) in all_hema: df_list.append({"X_display":x,"Y_display":y,"Type":"Hämatoxylin"})
-    if df_list:
-        df = pd.DataFrame(df_list)
-        df["X_original"] = (df["X_display"]/scale).round().astype("Int64")
-        df["Y_original"] = (df["Y_display"]/scale).round().astype("Int64")
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 CSV exportieren", data=csv, file_name="zellkerne.csv", mime="text/csv")
+    st.success("Auto-Erkennung abgeschlossen!")
 
 # -------------------- Haupt-App --------------------
 def main():
@@ -124,31 +101,75 @@ def main():
     st.title("🧬 Zellkern-Zähler – Modular & stabil")
     init_session_state()
 
-    # Bild-Upload
-    image_orig, filename = upload_image()
+    # -------------------- Bild Upload --------------------
+    uploaded_file = st.file_uploader("🔍 Bild hochladen", type=["jpg","jpeg","png","tif","tiff"])
+    if uploaded_file is None:
+        st.info("Bitte zuerst ein Bild hochladen.")
+        st.stop()
+    image_orig = np.array(Image.open(uploaded_file).convert("RGB"))
     H,W = image_orig.shape[:2]
 
-    # Slider für Anzeigegröße
+    # -------------------- Anzeigegröße --------------------
     DISPLAY_WIDTH = st.slider("📐 Bildbreite", 400, 2000, st.session_state.disp_width, step=100)
     st.session_state.disp_width = DISPLAY_WIDTH
     scale = DISPLAY_WIDTH / W
     image_disp = cv2.resize(image_orig,(DISPLAY_WIDTH,int(H*scale)))
 
-    # Punktmarkierung
-    coords = mark_points(image_disp)
+    # -------------------- Modus-Auswahl --------------------
+    colA,colB,colC = st.columns(3)
+    with colA: aec_mode = st.checkbox("🔴 AEC markieren")
+    with colB: hema_mode = st.checkbox("🔵 HEMA markieren")
+    with colC: bg_mode = st.checkbox("🖌 Hintergrund markieren")
+
+    # -------------------- Klicklogik --------------------
+    coords = streamlit_image_coordinates(Image.fromarray(image_disp), key="clickable_image", width=DISPLAY_WIDTH)
     if coords:
         x,y = coords["x"], coords["y"]
-        st.session_state.aec_points.append((x,y))  # Beispiel, kann alle Modi abdecken
+        if aec_mode: st.session_state.aec_points.append((x,y))
+        elif hema_mode: st.session_state.hema_points.append((x,y))
+        elif bg_mode: st.session_state.bg_points.append((x,y))
 
-    # Annotation & Safe Display
-    annotate_and_display(image_disp)
+    # -------------------- Annotation --------------------
+    marked_disp = image_disp.copy()
+    for points_list,color in [
+        (st.session_state.aec_points,(255,0,0)),
+        (st.session_state.hema_points,(0,0,255)),
+        (st.session_state.bg_points,(255,255,0))
+    ]:
+        for (x,y) in points_list:
+            cv2.circle(marked_disp,(x,y),6,color,2)
+    safe_display(marked_disp)
 
-    # Auto-Erkennung Button
+    # -------------------- Kalibrierung --------------------
+    if st.button("⚡ Kalibrierung speichern"):
+        st.session_state.aec_hsv = compute_hsv_range(st.session_state.aec_points, cv2.cvtColor(image_disp,cv2.COLOR_RGB2HSV))
+        st.session_state.hema_hsv = compute_hsv_range(st.session_state.hema_points, cv2.cvtColor(image_disp,cv2.COLOR_RGB2HSV))
+        st.success("Kalibrierung gespeichert!")
+
+    # -------------------- Auto-Erkennung --------------------
     if st.button("🤖 Auto-Erkennung"):
         auto_detect(image_disp)
+        # Punkte neu zeichnen
+        marked_disp = image_disp.copy()
+        for points_list,color in [
+            (st.session_state.aec_points,(255,0,0)),
+            (st.session_state.hema_points,(0,0,255))
+        ]:
+            for (x,y) in points_list:
+                cv2.circle(marked_disp,(x,y),6,color,2)
+        safe_display(marked_disp)
 
-    # CSV Export
-    export_results(scale)
+    # -------------------- CSV Export --------------------
+    all_points = (st.session_state.aec_points or []) + (st.session_state.hema_points or [])
+    if all_points:
+        df_list = []
+        for (x,y) in st.session_state.aec_points: df_list.append({"X":x,"Y":y,"Type":"AEC"})
+        for (x,y) in st.session_state.hema_points: df_list.append({"X":x,"Y":y,"Type":"HEMA"})
+        df = pd.DataFrame(df_list)
+        df["X_original"] = (df["X"]/scale).round().astype("Int64")
+        df["Y_original"] = (df["Y"]/scale).round().astype("Int64")
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 CSV exportieren", data=csv, file_name="zellkerne.csv", mime="text/csv")
 
 if __name__=="__main__":
     main()
