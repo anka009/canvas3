@@ -248,11 +248,21 @@ if coords:
         for key in ["aec_points", "hema_points", "bg_points", "manual_aec", "manual_hema"]:
             st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
     elif aec_mode:
-        st.session_state.aec_points.append((x, y))
+    st.session_state.aec_points = [(x, y)]  # Nur den letzten Punkt setzen
+    st.session_state.aec_hsv = compute_hsv_range(st.session_state.aec_points, hsv_disp)
+    st.session_state.aec_points = []  # Direkt löschen
+    st.success("✅ AEC-Kalibrierung durchgeführt.")
     elif hema_mode:
-        st.session_state.hema_points.append((x, y))
+    st.session_state.hema_points = [(x, y)]
+    st.session_state.hema_hsv = compute_hsv_range(st.session_state.hema_points, hsv_disp)
+    st.session_state.hema_points = []
+    st.success("✅ Hämatoxylin-Kalibrierung durchgeführt.")
     elif bg_mode:
-        st.session_state.bg_points.append((x, y))
+    st.session_state.bg_points = [(x, y)]
+    st.session_state.bg_hsv = compute_hsv_range(st.session_state.bg_points, hsv_disp)
+    st.session_state.bg_points = []
+    st.success("✅ Hintergrund-Kalibrierung durchgeführt.")
+    
     elif manual_aec_mode:
         st.session_state.manual_aec.append((x, y))
     elif manual_hema_mode:
