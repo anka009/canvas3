@@ -405,8 +405,8 @@ if df_list:
     csv = df.to_csv(index=False).encode("utf-8")
     st.download_button("📥 CSV exportieren", data=csv, file_name="zellkerne.csv", mime="text/csv")
 # -------------------- Punktanzahl anzeigen --------------------
-auto_aec = len(st.session_state.aec_points) - len(st.session_state.manual_aec)
-auto_hema = len(st.session_state.hema_points) - len(st.session_state.manual_hema)
+auto_aec = len(st.session_state.aec_points)
+auto_hema = len(st.session_state.hema_points)
 manual_aec = len(st.session_state.manual_aec)
 manual_hema = len(st.session_state.manual_hema)
 
