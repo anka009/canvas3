@@ -390,7 +390,7 @@ if st.session_state.last_auto_run > 0:
 # -------------------- Anzeige der Gesamtzahlen --------------------
 all_aec = (st.session_state.aec_points or [])  # enthält bereits manual + auto nach merge
 all_hema = (st.session_state.hema_points or [])
-st.markdown(f"### 🔢 Gesamt: AEC={len(all_aec) + len(st.session_state.manual_aec)}, Hämatoxylin={len(all_hema)}")
+st.markdown(f"### 🔢 Gesamt: AEC={len(all_aec) + len(st.session_state.manual_aec)}, Hämatoxylin={len(all_hema) + len(st.session_state.hema_points)}")
 
 # -------------------- CSV Export --------------------
 df_list = []
