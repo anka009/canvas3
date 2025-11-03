@@ -1,4 +1,4 @@
-# canvas_safe_fixed.py
+# canvas_safe_fixed_clean.py
 import streamlit as st
 import cv2
 import numpy as np
@@ -6,7 +6,6 @@ from PIL import Image
 from streamlit_image_coordinates import streamlit_image_coordinates
 import pandas as pd
 import json
-import numpy as np
 
 # -------------------- Hilfsfunktionen --------------------
 def is_near(p1, p2, r=10):
@@ -40,6 +39,11 @@ def get_centers(mask, min_area=50):
     return centers
 
 def compute_hsv_range(points, hsv_img, buffer_h=8, buffer_s=30, buffer_v=25):
+    """
+    Berechnet einen HSV-Bereich für mehrere Punkte.
+    (Fehlerfix: Return außerhalb der Schleife; sammelt alle Pixelregionen und
+    bestimmt dann global min/max.)
+    """
     radius = 5  # fester Radius in Pixeln
     if not points:
         return None
@@ -52,22 +56,26 @@ def compute_hsv_range(points, hsv_img, buffer_h=8, buffer_s=30, buffer_v=25):
         y_max = min(hsv_img.shape[0], y + radius + 1)
 
         region = hsv_img[y_min:y_max, x_min:x_max]
+        if region.size == 0:
+            continue
         vals.append(region.reshape(-1, 3))  # alle HSV-Werte in der Region
 
-        vals = np.vstack(vals)
-        h = vals[:, 0].astype(int)
-        s = vals[:, 1].astype(int)
-        v = vals[:, 2].astype(int)
+    if not vals:
+        return None
 
-        h_min = max(0, np.min(h) - buffer_h)
-        h_max = min(180, np.max(h) + buffer_h)
-        s_min = max(0, np.min(s) - buffer_s)
-        s_max = min(255, np.max(s) + buffer_s)
-        v_min = max(0, np.min(v) - buffer_v)
-        v_max = min(255, np.max(v) + buffer_v)
+    vals = np.vstack(vals)
+    h = vals[:, 0].astype(int)
+    s = vals[:, 1].astype(int)
+    v = vals[:, 2].astype(int)
 
-        return (h_min, h_max, s_min, s_max, v_min, v_max)
+    h_min = max(0, np.min(h) - buffer_h)
+    h_max = min(180, np.max(h) + buffer_h)
+    s_min = max(0, np.min(s) - buffer_s)
+    s_max = min(255, np.max(s) + buffer_s)
+    v_min = max(0, np.min(v) - buffer_v)
+    v_max = min(255, np.max(v) + buffer_v)
 
+    return (int(h_min), int(h_max), int(s_min), int(s_max), int(v_min), int(v_max))
 
 def apply_hue_wrap(hsv_img, hmin, hmax, smin, smax, vmin, vmax):
     """Maskiert unter Berücksichtigung von Hue-Wrap-around."""
@@ -83,22 +91,41 @@ def ensure_odd(k):
     if k % 2 == 1:
         return k
     return k + 1
+
+def remove_near(points, forbidden_points, r):
+    """Hilfsfunktion: entferne Punkte, die nahe an forbidden_points liegen."""
+    if not forbidden_points:
+        return points
+    return [p for p in points if not any(is_near(p, q, r) for q in forbidden_points)]
+
 def save_last_calibration():
+    """Speichert aec/hema/bg HSV in JSON (konvertiert numpy -> list)."""
+    def safe_list(val):
+        if isinstance(val, np.ndarray):
+            return val.tolist()
+        elif isinstance(val, list):
+            return val
+        else:
+            return None
+
     data = {
-        "aec_hsv": st.session_state.aec_hsv,
-        "hema_hsv": st.session_state.hema_hsv,
-        "bg_hsv": st.session_state.bg_hsv
+        "aec_hsv": safe_list(st.session_state.get("aec_hsv")),
+        "hema_hsv": safe_list(st.session_state.get("hema_hsv")),
+        "bg_hsv": safe_list(st.session_state.get("bg_hsv"))
     }
+
     with open("kalibrierung.json", "w") as f:
         json.dump(data, f)
+    st.success("💾 Kalibrierung gespeichert.")
 
 def load_last_calibration():
+    """Lädt Kalibrierung und konvertiert zurück in numpy arrays (oder None)."""
     try:
         with open("kalibrierung.json", "r") as f:
             data = json.load(f)
-            st.session_state.aec_hsv = data.get("aec_hsv")
-            st.session_state.hema_hsv = data.get("hema_hsv")
-            st.session_state.bg_hsv = data.get("bg_hsv")
+            st.session_state.aec_hsv = np.array(data.get("aec_hsv")) if data.get("aec_hsv") else None
+            st.session_state.hema_hsv = np.array(data.get("hema_hsv")) if data.get("hema_hsv") else None
+            st.session_state.bg_hsv = np.array(data.get("bg_hsv")) if data.get("bg_hsv") else None
             st.success("✅ Letzte Kalibrierung geladen.")
     except FileNotFoundError:
         st.warning("⚠️ Keine gespeicherte Kalibrierung gefunden.")
@@ -120,37 +147,6 @@ for key in default_keys:
             st.session_state[key] = 1400
         else:
             st.session_state[key] = None
-def save_last_calibration():
-    import json
-    import numpy as np
-
-    def safe_list(val):
-        if isinstance(val, np.ndarray):
-            return val.tolist()
-        elif isinstance(val, list):
-            return val
-        else:
-            return None
-
-    data = {
-        "aec_hsv": safe_list(st.session_state.get("aec_hsv")),
-        "hema_hsv": safe_list(st.session_state.get("hema_hsv")),
-        "bg_hsv": safe_list(st.session_state.get("bg_hsv"))
-    }
-
-    with open("kalibrierung.json", "w") as f:
-        json.dump(data, f)
-
-def load_last_calibration():
-    try:
-        with open("kalibrierung.json", "r") as f:
-            data = json.load(f)
-            st.session_state.aec_hsv = np.array(data.get("aec_hsv")) if data.get("aec_hsv") else None
-            st.session_state.hema_hsv = np.array(data.get("hema_hsv")) if data.get("hema_hsv") else None
-            st.session_state.bg_hsv = np.array(data.get("bg_hsv")) if data.get("bg_hsv") else None
-            st.success("✅ Letzte Kalibrierung geladen.")
-    except FileNotFoundError:
-        st.warning("⚠️ Keine gespeicherte Kalibrierung gefunden.")
 
 # -------------------- File upload --------------------
 uploaded_file = st.file_uploader("🔍 Bild hochladen", type=["jpg", "jpeg", "png", "tif", "tiff"])
@@ -262,7 +258,6 @@ if coords:
         st.session_state.bg_hsv = compute_hsv_range(st.session_state.bg_points, hsv_disp)
         st.session_state.bg_points = []
         st.success("✅ Hintergrund-Kalibrierung durchgeführt.")
-    
     elif manual_aec_mode:
         st.session_state.manual_aec.append((x, y))
     elif manual_hema_mode:
@@ -324,22 +319,22 @@ if st.session_state.last_auto_run > 0:
     aec_detected = []
     hema_detected = []
 
-    # Wenn Kalibrierung existiert, erstelle Masken
-    if st.session_state.aec_hsv:
-        hmin, hmax, smin, smax, vmin, vmax = st.session_state.aec_hsv
+    # Wenn Kalibrierung existiert, erstelle Masken (mit None-Checks)
+    if st.session_state.aec_hsv is not None:
+        hmin, hmax, smin, smax, vmin, vmax = map(int, st.session_state.aec_hsv)
         mask_aec = apply_hue_wrap(hsv_proc, hmin, hmax, smin, smax, vmin, vmax)
     else:
         mask_aec = np.zeros(hsv_proc.shape[:2], dtype=np.uint8)
 
-    if st.session_state.hema_hsv:
-        hmin, hmax, smin, smax, vmin, vmax = st.session_state.hema_hsv
+    if st.session_state.hema_hsv is not None:
+        hmin, hmax, smin, smax, vmin, vmax = map(int, st.session_state.hema_hsv)
         mask_hema = apply_hue_wrap(hsv_proc, hmin, hmax, smin, smax, vmin, vmax)
     else:
         mask_hema = np.zeros(hsv_proc.shape[:2], dtype=np.uint8)
 
     # Wenn Hintergrundkalibrierung vorhanden, entferne diese Bereiche
-    if st.session_state.bg_hsv:
-        hmin, hmax, smin, smax, vmin, vmax = st.session_state.bg_hsv
+    if st.session_state.bg_hsv is not None:
+        hmin, hmax, smin, smax, vmin, vmax = map(int, st.session_state.bg_hsv)
         mask_bg = apply_hue_wrap(hsv_proc, hmin, hmax, smin, smax, vmin, vmax)
         # Masken bereinigen: setze BG-Pixel auf 0 in AEC/HEMA
         mask_aec = cv2.bitwise_and(mask_aec, cv2.bitwise_not(mask_bg))
@@ -356,20 +351,10 @@ if st.session_state.last_auto_run > 0:
 
     # entferne Punkte, die in der Nähe von bg_points liegen (Artefakte)
     if st.session_state.bg_points:
-        cleaned_aec = []
-        for p in aec_detected:
-            if not any(is_near(p, bgp, r=max(6, circle_radius)) for bgp in st.session_state.bg_points):
-                cleaned_aec.append(p)
-        aec_detected = cleaned_aec
+        aec_detected = remove_near(aec_detected, st.session_state.bg_points, r=max(6, circle_radius))
+        hema_detected = remove_near(hema_detected, st.session_state.bg_points, r=max(6, circle_radius))
 
-        cleaned_hema = []
-        for p in hema_detected:
-            if not any(is_near(p, bgp, r=max(6, circle_radius)) for bgp in st.session_state.bg_points):
-                cleaned_hema.append(p)
-        hema_detected = cleaned_hema
-
-    # Kombiniere automatische und manuelle Punkte (manuelle ergänzen/überschreiben)
-    # Wir wollen manuelle Punkte beibehalten + automatisch erkannte hinzufügen (falls nicht nahe an manuellen)
+    # Kombiniere automatische und manuelle Punkte
     merged_aec = list(st.session_state.manual_aec)  # manuelle behalten
     for p in aec_detected:
         if not any(is_near(p, q, r=max(6, circle_radius)) for q in merged_aec):
@@ -388,9 +373,10 @@ if st.session_state.last_auto_run > 0:
     st.session_state.last_auto_run = 0
 
 # -------------------- Anzeige der Gesamtzahlen --------------------
-all_aec = (st.session_state.aec_points or [])  # enthält bereits manual + auto nach merge
+# st.session_state.aec_points / hema_points enthalten nach Merge bereits manuelle+auto
+all_aec = (st.session_state.aec_points or [])
 all_hema = (st.session_state.hema_points or [])
-st.markdown(f"### 🔢 Gesamt: AEC={len(all_aec) + len(st.session_state.manual_aec)}, Hämatoxylin={len(all_hema) + len(st.session_state.manual_hema)}")
+st.markdown(f"### 🔢 Gesamt: AEC={len(all_aec)}, Hämatoxylin={len(all_hema)}")
 
 # -------------------- CSV Export --------------------
 df_list = []
@@ -404,6 +390,7 @@ if df_list:
     df["Y_original"] = (df["Y_display"] / scale).round().astype("Int64")
     csv = df.to_csv(index=False).encode("utf-8")
     st.download_button("📥 CSV exportieren", data=csv, file_name="zellkerne.csv", mime="text/csv")
+
 # -------------------- Punktanzahl anzeigen --------------------
 auto_aec = len(st.session_state.aec_points)
 auto_hema = len(st.session_state.hema_points)
