@@ -200,10 +200,10 @@ manual_aec_mode = mode == "AEC manuell hinzufügen"
 manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
 delete_mode = mode == "Punkt löschen (alle Kategorien)"
 
-# -------------------- Sidebar: Filter & Kalibrierung --------------------
-st.sidebar.markdown("### ⚙️ Filterparameter")
+# -------------------- Sidebar: Parameter & Aktionen --------------------
+st.sidebar.markdown("### ⚙️ Filter & Kalibrierung")
 
-# Filterparameter
+# -------------------- Filterparameter --------------------
 blur_kernel = st.sidebar.slider(
     "🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1, key="blur_slider"
 )
@@ -225,7 +225,7 @@ calib_radius = st.sidebar.slider(
     "🎯 Kalibrierungsradius (Pixel)", 1, 15, 5, key="calib_radius_slider"
 )
 
-# HSV-Toleranz für Kalibrierung
+# -------------------- HSV-Toleranz --------------------
 st.sidebar.markdown("### 🛠️ Kalibrierungs-Toleranz")
 buffer_h = st.sidebar.slider("Hue-Toleranz", 1, 30, 8, key="buffer_h")
 buffer_s = st.sidebar.slider("Sättigung-Toleranz", 1, 100, 30, key="buffer_s")
@@ -248,7 +248,7 @@ mode = st.sidebar.radio(
     key="mode_radio"
 )
 
-# Interne Flags für Klicklogik
+# interne Flags für Klicklogik
 aec_mode = mode == "AEC markieren (Kalibrierung)"
 hema_mode = mode == "Hämatoxylin markieren (Kalibrierung)"
 bg_mode = mode == "Hintergrund markieren"
@@ -258,7 +258,6 @@ delete_mode = mode == "Punkt löschen (alle Kategorien)"
 
 # -------------------- Quick Actions --------------------
 st.sidebar.markdown("### ⚡ Schnellaktionen")
-
 if st.sidebar.button("🧹 Alle markierten & manuellen Punkte löschen", key="btn_clear_points"):
     for k in ["aec_points", "hema_points", "bg_points", "manual_aec", "manual_hema"]:
         st.session_state[k] = []
@@ -275,7 +274,6 @@ if st.sidebar.button("🤖 Auto-Erkennung ausführen", key="btn_auto_run"):
 
 # -------------------- Kalibrierung speichern/laden --------------------
 st.sidebar.markdown("### 💾 Kalibrierung")
-
 if st.sidebar.button("💾 Letzte Kalibrierung speichern", key="btn_save_calib"):
     save_last_calibration()
 
