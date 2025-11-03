@@ -225,49 +225,53 @@ with colC:
 marked_disp = image_disp.copy()
 
 # Markiere bestehende Punkte
+# Markiere bestehende Punkte
 for points_list, color in [
-    (st.session_state.aec_points, (255, 0, 0)),
-    (st.session_state.hema_points, (0, 0, 255)),
-    (st.session_state.manual_aec or [], (255, 165, 0)),
-    (st.session_state.manual_hema or [], (128, 0, 128)),
-    (st.session_state.bg_points or [], (255, 255, 0)),
+    (st.session_state.aec_points, (255, 100, 100)),      # AEC = hellrot
+    (st.session_state.hema_points, (100, 100, 255)),     # Hämatoxylin = hellblau
+    (st.session_state.bg_points, (255, 255, 0)),         # Hintergrund = gelb
+    (st.session_state.manual_aec or [], (255, 165, 0)),  # manuell AEC = orange
+    (st.session_state.manual_hema or [], (128, 0, 128)), # manuell Hämatoxylin = lila
 ]:
     for (x, y) in points_list:
         cv2.circle(marked_disp, (x, y), circle_radius, color, -1)
 
+
 coords = streamlit_image_coordinates(Image.fromarray(marked_disp), key=f"clickable_image_{st.session_state.last_auto_run}", width=DISPLAY_WIDTH)
 
-# -------------------- Klicklogik (einheitlich + dedup) --------------------
+# -------------------- Klicklogik (mehrpunktfähig + dedup) --------------------
 if coords:
     x, y = int(coords["x"]), int(coords["y"])
     if delete_mode:
         for key in ["aec_points", "hema_points", "bg_points", "manual_aec", "manual_hema"]:
             st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
+
     elif aec_mode:
-        st.session_state.aec_points = [(x, y)]  # Nur den letzten Punkt setzen
-        st.session_state.aec_hsv = compute_hsv_range(st.session_state.aec_points, hsv_disp)
-        st.session_state.aec_points = []  # Direkt löschen
-        st.success("✅ AEC-Kalibrierung durchgeführt.")
+        # AEC-Kalibrierpunkte sammeln
+        st.session_state.aec_points.append((x, y))
+        st.info(f"📍 AEC-Punkt hinzugefügt ({x}, {y})")
+
     elif hema_mode:
-        st.session_state.hema_points = [(x, y)]
-        st.session_state.hema_hsv = compute_hsv_range(st.session_state.hema_points, hsv_disp)
-        st.session_state.hema_points = []
-        st.success("✅ Hämatoxylin-Kalibrierung durchgeführt.")
+        # Hämatoxylin-Kalibrierpunkte sammeln
+        st.session_state.hema_points.append((x, y))
+        st.info(f"📍 Hämatoxylin-Punkt hinzugefügt ({x}, {y})")
+
     elif bg_mode:
-        st.session_state.bg_points = [(x, y)]
-        st.session_state.bg_hsv = compute_hsv_range(st.session_state.bg_points, hsv_disp)
-        st.session_state.bg_points = []
-        st.success("✅ Hintergrund-Kalibrierung durchgeführt.")
+        # Hintergrund-Kalibrierpunkte sammeln
+        st.session_state.bg_points.append((x, y))
+        st.info(f"📍 Hintergrund-Punkt hinzugefügt ({x}, {y})")
+
     elif manual_aec_mode:
         st.session_state.manual_aec.append((x, y))
+
     elif manual_hema_mode:
         st.session_state.manual_hema.append((x, y))
 
 # dedup session lists to avoid ghosting
 for k in ["aec_points", "hema_points", "bg_points", "manual_aec", "manual_hema"]:
-    st.session_state[k] = dedup_points(st.session_state[k], min_dist=max(4, circle_radius//2))
+    st.session_state[k] = dedup_points(st.session_state[k], min_dist=max(4, circle_radius // 2))
 
-# -------------------- Kalibrierung speichern (getrennt) --------------------
+# -------------------- Kalibrierung speichern (Mehrpunkt) --------------------
 st.markdown("### ⚙️ Kalibrierung")
 
 col_cal1, col_cal2, col_cal3 = st.columns(3)
@@ -276,8 +280,9 @@ with col_cal1:
     if st.button("⚡ AEC kalibrieren"):
         if st.session_state.aec_points:
             st.session_state.aec_hsv = compute_hsv_range(st.session_state.aec_points, hsv_disp)
-            st.session_state.aec_points = []  # Punkte direkt löschen
-            st.success("✅ AEC-Kalibrierung gespeichert.")
+            count = len(st.session_state.aec_points)
+            st.session_state.aec_points = []
+            st.success(f"✅ AEC-Kalibrierung aus {count} Punkten gespeichert.")
         else:
             st.warning("⚠️ Keine AEC-Punkte vorhanden.")
 
@@ -285,8 +290,9 @@ with col_cal2:
     if st.button("⚡ Hämatoxylin kalibrieren"):
         if st.session_state.hema_points:
             st.session_state.hema_hsv = compute_hsv_range(st.session_state.hema_points, hsv_disp)
-            st.session_state.hema_points = []  # Punkte direkt löschen
-            st.success("✅ Hämatoxylin-Kalibrierung gespeichert.")
+            count = len(st.session_state.hema_points)
+            st.session_state.hema_points = []
+            st.success(f"✅ Hämatoxylin-Kalibrierung aus {count} Punkten gespeichert.")
         else:
             st.warning("⚠️ Keine Hämatoxylin-Punkte vorhanden.")
 
@@ -294,8 +300,9 @@ with col_cal3:
     if st.button("⚡ Hintergrund kalibrieren"):
         if st.session_state.bg_points:
             st.session_state.bg_hsv = compute_hsv_range(st.session_state.bg_points, hsv_disp)
-            st.session_state.bg_points = []  # Punkte direkt löschen
-            st.success("✅ Hintergrund-Kalibrierung gespeichert.")
+            count = len(st.session_state.bg_points)
+            st.session_state.bg_points = []
+            st.success(f"✅ Hintergrund-Kalibrierung aus {count} Punkten gespeichert.")
         else:
             st.warning("⚠️ Keine Hintergrund-Punkte vorhanden.")
 
