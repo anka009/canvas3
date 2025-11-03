@@ -284,7 +284,6 @@ if st.sidebar.button("📂 Letzte Kalibrierung laden", key="btn_load_calib"):
 marked_disp = image_disp.copy()
 
 # Markiere bestehende Punkte
-# Markiere bestehende Punkte
 for points_list, color in [
     (st.session_state.aec_points, (255, 100, 100)),      # AEC = hellrot
     (st.session_state.hema_points, (100, 100, 255)),     # Hämatoxylin = hellblau
