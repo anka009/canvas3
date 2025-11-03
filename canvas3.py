@@ -148,7 +148,7 @@ def load_last_calibration():
 
 # -------------------- Streamlit Setup --------------------
 st.set_page_config(page_title="Zellkern-Zähler (fixed)", layout="wide")
-st.title("🧬 Zellkern-Zähler – stabilisierte Version")
+st.title("🧬 Zellkern-Zähler – 3 Punkte Kalibration")
 
 # -------------------- Session State --------------------
 default_keys = [
