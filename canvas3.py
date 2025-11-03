@@ -44,7 +44,7 @@ def compute_hsv_range(points, hsv_img):
     - Median statt Min/Max
     - Kleine Pixelregion um jeden Punkt
     - Hue-Wraparound für Rot (0°-180°)
-    - Angepasste Toleranzen für zuverlässige AEC-Erkennung
+    - Dynamische Toleranzen: mehr Punkte = größere Toleranz
     """
 
     if not points:
@@ -74,16 +74,16 @@ def compute_hsv_range(points, hsv_img):
     s_med = np.median(s)
     v_med = np.median(v)
 
-    # Toleranzen festlegen
-    tol_h = 15  # Hue ±15
-    tol_s = 50  # Sättigung ±50
-    tol_v = 50  # Value ±50
+    # Dynamische Toleranz: je mehr Punkte, desto größer
+    n_points = len(points)
+    tol_h = min(25, 10 + n_points * 3)  # Hue-Toleranz zwischen 10–25
+    tol_s = min(80, 30 + n_points * 10) # Sättigung 30–80
+    tol_v = min(80, 30 + n_points * 10) # Value 30–80
 
     # Hue-Wraparound für Rot
     if np.mean(h) > 150 or np.mean(h) < 20:
-        # Rot-Cluster: Hue über 0/180 Grenze
         h_med = np.median(np.where(h < 90, h + 180, h)) % 180
-        tol_h = 20  # größerer Bereich für Rot
+        tol_h = min(30, tol_h + 5)  # Rot etwas großzügiger
 
     h_min = int((h_med - tol_h) % 180)
     h_max = int((h_med + tol_h) % 180)
