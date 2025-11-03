@@ -216,13 +216,14 @@ manual_aec_mode = mode == "AEC manuell hinzufügen"
 manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
 delete_mode = mode == "Punkt löschen (alle Kategorien)"
 
-# -------------------- Sidebar / vertikale Parameter --------------------
+# -------------------- Sidebar: Filter & Kalibrierung --------------------
 st.sidebar.markdown("### ⚙️ Filterparameter")
 
+# Filterparameter
 blur_kernel = st.sidebar.slider(
     "🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1, key="blur_slider"
 )
-blur_kernel = ensure_odd(blur_kernel)  # zwingt ungerade Kernelgröße
+blur_kernel = ensure_odd(blur_kernel)
 
 min_area = st.sidebar.number_input(
     "📏 Mindestfläche (px)", 10, 2000, 100, key="min_area_input"
@@ -239,6 +240,37 @@ circle_radius = st.sidebar.slider(
 calib_radius = st.sidebar.slider(
     "🎯 Kalibrierungsradius (Pixel)", 1, 15, 5, key="calib_radius_slider"
 )
+
+# HSV-Toleranz für Kalibrierung
+st.sidebar.markdown("### 🛠️ Kalibrierungs-Toleranz")
+buffer_h = st.sidebar.slider("Hue-Toleranz", 1, 30, 8, key="buffer_h")
+buffer_s = st.sidebar.slider("Sättigung-Toleranz", 1, 100, 30, key="buffer_s")
+buffer_v = st.sidebar.slider("Value-Toleranz", 1, 100, 25, key="buffer_v")
+
+# -------------------- Modus auswählen --------------------
+st.sidebar.markdown("### 🎨 Modus auswählen (exklusiv)")
+mode = st.sidebar.radio(
+    "Modus",
+    [
+        "Keine",
+        "AEC markieren (Kalibrierung)",
+        "Hämatoxylin markieren (Kalibrierung)",
+        "Hintergrund markieren",
+        "AEC manuell hinzufügen",
+        "Hämatoxylin manuell hinzufügen",
+        "Punkt löschen (alle Kategorien)"
+    ],
+    index=0,
+    key="mode_radio"
+)
+
+# Interne Flags für Klicklogik
+aec_mode = mode == "AEC markieren (Kalibrierung)"
+hema_mode = mode == "Hämatoxylin markieren (Kalibrierung)"
+bg_mode = mode == "Hintergrund markieren"
+manual_aec_mode = mode == "AEC manuell hinzufügen"
+manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
+delete_mode = mode == "Punkt löschen (alle Kategorien)"
 
 # -------------------- Quick Actions --------------------
 st.sidebar.markdown("### ⚡ Schnellaktionen")
