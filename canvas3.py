@@ -38,20 +38,19 @@ def get_centers(mask, min_area=50):
                 centers.append((cx, cy))
     return centers
 
-def compute_hsv_range(points, hsv_img):
+def compute_hsv_range(points, hsv_img, radius=5):
     """
     Berechne HSV-Bereich aus mehreren Kalibrierpunkten (robust gegen Ausreißer)
     - Median statt Min/Max
-    - Kleine Pixelregion um jeden Punkt
+    - Dynamischer Radius
     - Hue-Wraparound für Rot (0°-180°)
-    - Dynamische Toleranzen: mehr Punkte = größere Toleranz
+    - Dynamische Toleranzen je nach Anzahl der Punkte
     """
 
     if not points:
         return None
 
     vals = []
-    radius = 5  # Region um jeden Punkt
     for (x, y) in points:
         x_min = max(0, x - radius)
         x_max = min(hsv_img.shape[1], x + radius + 1)
@@ -69,21 +68,21 @@ def compute_hsv_range(points, hsv_img):
     s = vals[:, 1].astype(int)
     v = vals[:, 2].astype(int)
 
-    # Median berechnen
+    # Medianwerte
     h_med = np.median(h)
     s_med = np.median(s)
     v_med = np.median(v)
 
-    # Dynamische Toleranz: je mehr Punkte, desto größer
+    # Dynamische Toleranz
     n_points = len(points)
-    tol_h = min(25, 10 + n_points * 3)  # Hue-Toleranz zwischen 10–25
-    tol_s = min(80, 30 + n_points * 10) # Sättigung 30–80
-    tol_v = min(80, 30 + n_points * 10) # Value 30–80
+    tol_h = min(25, 10 + n_points * 3)
+    tol_s = min(80, 30 + n_points * 10)
+    tol_v = min(80, 30 + n_points * 10)
 
     # Hue-Wraparound für Rot
     if np.mean(h) > 150 or np.mean(h) < 20:
         h_med = np.median(np.where(h < 90, h + 180, h)) % 180
-        tol_h = min(30, tol_h + 5)  # Rot etwas großzügiger
+        tol_h = min(30, tol_h + 5)
 
     h_min = int((h_med - tol_h) % 180)
     h_max = int((h_med + tol_h) % 180)
@@ -195,6 +194,18 @@ hsv_disp = cv2.cvtColor(image_disp, cv2.COLOR_RGB2HSV)
 
 # -------------------- Parameter --------------------
 st.markdown("### ⚙️ Filterparameter")
+col1, col2, col3, col4 = st.columns(4)  # neue Spalte für Radius
+with col1:
+    blur_kernel = st.slider("🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1)
+    blur_kernel = ensure_odd(blur_kernel)
+    min_area = st.number_input("📏 Mindestfläche (px)", 10, 2000, 100)
+with col2:
+    alpha = st.slider("🌗 Alpha (Kontrast)", 0.1, 3.0, 1.0, step=0.1)
+with col3:
+    circle_radius = st.slider("⚪ Kreisradius (Display-Px)", 1, 20, 5)
+with col4:
+    calib_radius = st.slider("🎯 Kalibrierungsradius (Pixel)", 1, 15, 5)
+
 col1, col2, col3 = st.columns(3)
 with col1:
     blur_kernel = st.slider("🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1)
