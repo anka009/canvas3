@@ -192,14 +192,6 @@ scale = DISPLAY_WIDTH / W_orig
 image_disp = cv2.resize(image_orig, (DISPLAY_WIDTH, int(H_orig * scale)), interpolation=cv2.INTER_AREA)
 hsv_disp = cv2.cvtColor(image_disp, cv2.COLOR_RGB2HSV)
 
-# -------------------- interne Flags für Klicklogik --------------------
-aec_mode = mode == "AEC markieren (Kalibrierung)"
-hema_mode = mode == "Hämatoxylin markieren (Kalibrierung)"
-bg_mode = mode == "Hintergrund markieren"
-manual_aec_mode = mode == "AEC manuell hinzufügen"
-manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
-delete_mode = mode == "Punkt löschen (alle Kategorien)"
-
 # -------------------- Sidebar: Parameter & Aktionen --------------------
 st.sidebar.markdown("### ⚙️ Filter & Kalibrierung")
 
