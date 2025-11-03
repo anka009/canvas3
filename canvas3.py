@@ -38,17 +38,20 @@ def get_centers(mask, min_area=50):
                 centers.append((cx, cy))
     return centers
 
-def compute_hsv_range(points, hsv_img, tol_h=10, tol_s=30, tol_v=30):
+def compute_hsv_range(points, hsv_img):
     """
     Berechne HSV-Bereich aus mehreren Kalibrierpunkten (robust gegen Ausreißer)
     - Median statt Min/Max
-    - Hue-Wraparound-Unterstützung (wichtig für Rot/ AEC)
+    - Kleine Pixelregion um jeden Punkt
+    - Hue-Wraparound für Rot (0°-180°)
+    - Angepasste Toleranzen für zuverlässige AEC-Erkennung
     """
+
     if not points:
         return None
 
     vals = []
-    radius = 5
+    radius = 5  # Region um jeden Punkt
     for (x, y) in points:
         x_min = max(0, x - radius)
         x_max = min(hsv_img.shape[1], x + radius + 1)
@@ -66,15 +69,21 @@ def compute_hsv_range(points, hsv_img, tol_h=10, tol_s=30, tol_v=30):
     s = vals[:, 1].astype(int)
     v = vals[:, 2].astype(int)
 
-    # Median Hue bestimmen
-    if np.mean(h) > 150 or np.mean(h) < 20:
-        # Rot-Cluster: Wraparound
-        h_med = np.median(np.where(h < 90, h + 180, h)) % 180
-    else:
-        h_med = np.median(h)
-
+    # Median berechnen
+    h_med = np.median(h)
     s_med = np.median(s)
     v_med = np.median(v)
+
+    # Toleranzen festlegen
+    tol_h = 15  # Hue ±15
+    tol_s = 50  # Sättigung ±50
+    tol_v = 50  # Value ±50
+
+    # Hue-Wraparound für Rot
+    if np.mean(h) > 150 or np.mean(h) < 20:
+        # Rot-Cluster: Hue über 0/180 Grenze
+        h_med = np.median(np.where(h < 90, h + 180, h)) % 180
+        tol_h = 20  # größerer Bereich für Rot
 
     h_min = int((h_med - tol_h) % 180)
     h_max = int((h_med + tol_h) % 180)
