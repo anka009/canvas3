@@ -215,6 +215,13 @@ circle_radius = st.sidebar.slider(
 calib_radius = st.sidebar.slider(
     "🎯 Kalibrierungsradius (Pixel)", 1, 15, 5, key="calib_radius_slider"
 )
+# Interne Flags für Modus
+aec_mode = mode == "AEC markieren (Kalibrierung)"
+hema_mode = mode == "Hämatoxylin markieren (Kalibrierung)"
+bg_mode = mode == "Hintergrund markieren"
+manual_aec_mode = mode == "AEC manuell hinzufügen"
+manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
+delete_mode = mode == "Punkt löschen (alle Kategorien)"
 
 # -------------------- Quick Actions --------------------
 st.sidebar.markdown("### ⚡ Schnellaktionen")
