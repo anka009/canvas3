@@ -192,62 +192,55 @@ scale = DISPLAY_WIDTH / W_orig
 image_disp = cv2.resize(image_orig, (DISPLAY_WIDTH, int(H_orig * scale)), interpolation=cv2.INTER_AREA)
 hsv_disp = cv2.cvtColor(image_disp, cv2.COLOR_RGB2HSV)
 
-# -------------------- Parameter --------------------
-st.markdown("### ⚙️ Filterparameter")
-col1, col2, col3, col4 = st.columns(4)  # neue Spalte für Radius
-with col1:
-    blur_kernel = st.slider("🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1)
-    blur_kernel = ensure_odd(blur_kernel)
-    min_area = st.number_input("📏 Mindestfläche (px)", 10, 2000, 100)
-with col2:
-    alpha = st.slider("🌗 Alpha (Kontrast)", 0.1, 3.0, 1.0, step=0.1)
-with col3:
-    circle_radius = st.slider("⚪ Kreisradius (Display-Px)", 1, 20, 5)
-with col4:
-    calib_radius = st.slider("🎯 Kalibrierungsradius (Pixel)", 1, 15, 5)
+# -------------------- Sidebar / vertikale Parameter --------------------
+st.sidebar.markdown("### ⚙️ Filterparameter")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    blur_kernel = st.slider("🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1)
-    blur_kernel = ensure_odd(blur_kernel)  # zwingt ungerade Kernelgröße
-    min_area = st.number_input("📏 Mindestfläche (px)", 10, 2000, 100)
-with col2:
-    alpha = st.slider("🌗 Alpha (Kontrast)", 0.1, 3.0, 1.0, step=0.1)
-with col3:
-    circle_radius = st.slider("⚪ Kreisradius (Display-Px)", 1, 20, 5)
+blur_kernel = st.sidebar.slider(
+    "🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1, key="blur_slider"
+)
+blur_kernel = ensure_odd(blur_kernel)  # zwingt ungerade Kernelgröße
 
-# -------------------- Modi (exklusiv) --------------------
-st.markdown("### 🎨 Modus auswählen (exklusiv)")
-mode = st.radio("Modus", [
-    "Keine", "AEC markieren (Kalibrierung)", "Hämatoxylin markieren (Kalibrierung)",
-    "Hintergrund markieren", "AEC manuell hinzufügen", "Hämatoxylin manuell hinzufügen",
-    "Punkt löschen (alle Kategorien)"
-], index=0)
-# Map to internal flags
-aec_mode = mode == "AEC markieren (Kalibrierung)"
-hema_mode = mode == "Hämatoxylin markieren (Kalibrierung)"
-bg_mode = mode == "Hintergrund markieren"
-manual_aec_mode = mode == "AEC manuell hinzufügen"
-manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
-delete_mode = mode == "Punkt löschen (alle Kategorien)"
+min_area = st.sidebar.number_input(
+    "📏 Mindestfläche (px)", 10, 2000, 100, key="min_area_input"
+)
 
-# -------------------- Quick actions --------------------
-colA, colB, colC = st.columns([1, 1, 1])
-with colA:
-    if st.button("🧹 Alle markierten & manuellen Punkte löschen"):
-        for k in ["aec_points", "hema_points", "bg_points", "manual_aec", "manual_hema"]:
-            st.session_state[k] = []
-        st.success("Alle Punkte gelöscht.")
-with colB:
-    if st.button("🧾 Kalibrierung zurücksetzen"):
-        st.session_state.aec_hsv = None
-        st.session_state.hema_hsv = None
-        st.session_state.bg_hsv = None
-        st.info("Kalibrierungswerte zurückgesetzt.")
-with colC:
-    # Auto-Run Button: Wir erhöhen einen Zähler, damit Reruns eindeutig sind
-    if st.button("🤖 Auto-Erkennung ausführen"):
-        st.session_state.last_auto_run = st.session_state.last_auto_run + 1
+alpha = st.sidebar.slider(
+    "🌗 Alpha (Kontrast)", 0.1, 3.0, 1.0, step=0.1, key="alpha_slider"
+)
+
+circle_radius = st.sidebar.slider(
+    "⚪ Kreisradius (Display-Px)", 1, 20, 5, key="circle_radius_slider"
+)
+
+calib_radius = st.sidebar.slider(
+    "🎯 Kalibrierungsradius (Pixel)", 1, 15, 5, key="calib_radius_slider"
+)
+
+# -------------------- Quick Actions --------------------
+st.sidebar.markdown("### ⚡ Schnellaktionen")
+
+if st.sidebar.button("🧹 Alle markierten & manuellen Punkte löschen", key="btn_clear_points"):
+    for k in ["aec_points", "hema_points", "bg_points", "manual_aec", "manual_hema"]:
+        st.session_state[k] = []
+    st.success("Alle Punkte gelöscht.")
+
+if st.sidebar.button("🧾 Kalibrierung zurücksetzen", key="btn_reset_calib"):
+    st.session_state.aec_hsv = None
+    st.session_state.hema_hsv = None
+    st.session_state.bg_hsv = None
+    st.info("Kalibrierungswerte zurückgesetzt.")
+
+if st.sidebar.button("🤖 Auto-Erkennung ausführen", key="btn_auto_run"):
+    st.session_state.last_auto_run += 1
+
+# -------------------- Kalibrierung speichern/laden --------------------
+st.sidebar.markdown("### 💾 Kalibrierung")
+
+if st.sidebar.button("💾 Letzte Kalibrierung speichern", key="btn_save_calib"):
+    save_last_calibration()
+
+if st.sidebar.button("📂 Letzte Kalibrierung laden", key="btn_load_calib"):
+    load_last_calibration()
 
 # -------------------- Bildanzeige (mit Markierungen) --------------------
 marked_disp = image_disp.copy()
@@ -333,15 +326,6 @@ with col_cal3:
             st.success(f"✅ Hintergrund-Kalibrierung aus {count} Punkten gespeichert.")
         else:
             st.warning("⚠️ Keine Hintergrund-Punkte vorhanden.")
-
-st.markdown("### 💾 Kalibrierung speichern/laden")
-col_save, col_load = st.columns(2)
-with col_save:
-    if st.button("💾 Letzte Kalibrierung speichern"):
-        save_last_calibration()
-with col_load:
-    if st.button("📂 Letzte Kalibrierung laden"):
-        load_last_calibration()
 
 # -------------------- Auto-Erkennung (reaktiv bei last_auto_run Veränderung) --------------------
 # Wenn last_auto_run > 0, führe Erkennung aus
