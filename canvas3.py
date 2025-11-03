@@ -38,42 +38,40 @@ def get_centers(mask, min_area=50):
                 centers.append((cx, cy))
     return centers
 
-def compute_hsv_range(points, hsv_img, buffer_h=8, buffer_s=30, buffer_v=25):
+def compute_hsv_range(points, hsv_img, tol_h=10, tol_s=30, tol_v=30):
     """
-    Berechnet einen HSV-Bereich für mehrere Punkte.
-    (Fehlerfix: Return außerhalb der Schleife; sammelt alle Pixelregionen und
-    bestimmt dann global min/max.)
+    Berechne HSV-Bereich aus mehreren Kalibrierpunkten (robust gegen Ausreißer)
+    - nutzt Median statt Min/Max
+    - fügt Toleranz hinzu, um natürliche Farbvariation zu erfassen
     """
-    radius = 5  # fester Radius in Pixeln
+
     if not points:
         return None
 
+    # HSV-Werte aller markierten Punkte holen (jeweils 5×5 Pixel-Region)
     vals = []
+    radius = 5
     for (x, y) in points:
         x_min = max(0, x - radius)
         x_max = min(hsv_img.shape[1], x + radius + 1)
         y_min = max(0, y - radius)
         y_max = min(hsv_img.shape[0], y + radius + 1)
-
         region = hsv_img[y_min:y_max, x_min:x_max]
-        if region.size == 0:
-            continue
-        vals.append(region.reshape(-1, 3))  # alle HSV-Werte in der Region
+        if region.size > 0:
+            vals.append(region.reshape(-1, 3))
 
     if not vals:
         return None
 
     vals = np.vstack(vals)
-    h = vals[:, 0].astype(int)
-    s = vals[:, 1].astype(int)
-    v = vals[:, 2].astype(int)
+    h_med, s_med, v_med = np.median(vals, axis=0)
 
-    h_min = max(0, np.min(h) - buffer_h)
-    h_max = min(180, np.max(h) + buffer_h)
-    s_min = max(0, np.min(s) - buffer_s)
-    s_max = min(255, np.max(s) + buffer_s)
-    v_min = max(0, np.min(v) - buffer_v)
-    v_max = min(255, np.max(v) + buffer_v)
+    h_min = max(0, h_med - tol_h)
+    h_max = min(179, h_med + tol_h)
+    s_min = max(0, s_med - tol_s)
+    s_max = min(255, s_med + tol_s)
+    v_min = max(0, v_med - tol_v)
+    v_max = min(255, v_med + tol_v)
 
     return (int(h_min), int(h_max), int(s_min), int(s_max), int(v_min), int(v_max))
 
