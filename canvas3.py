@@ -191,22 +191,6 @@ H_orig, W_orig = image_orig.shape[:2]
 scale = DISPLAY_WIDTH / W_orig
 image_disp = cv2.resize(image_orig, (DISPLAY_WIDTH, int(H_orig * scale)), interpolation=cv2.INTER_AREA)
 hsv_disp = cv2.cvtColor(image_disp, cv2.COLOR_RGB2HSV)
-# -------------------- Modus auswählen --------------------
-st.sidebar.markdown("### 🎨 Modus auswählen (exklusiv)")
-mode = st.sidebar.radio(
-    "Modus",
-    [
-        "Keine",
-        "AEC markieren (Kalibrierung)",
-        "Hämatoxylin markieren (Kalibrierung)",
-        "Hintergrund markieren",
-        "AEC manuell hinzufügen",
-        "Hämatoxylin manuell hinzufügen",
-        "Punkt löschen (alle Kategorien)"
-    ],
-    index=0,
-    key="mode_radio"
-)
 
 # -------------------- interne Flags für Klicklogik --------------------
 aec_mode = mode == "AEC markieren (Kalibrierung)"
