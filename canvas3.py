@@ -2,6 +2,25 @@ import streamlit as st
 import cv2
 import numpy as np
 from pathlib import Path
+from streamlit_drawable_canvas import st_canvas
+from PIL import Image
+
+# OpenCV -> PIL konvertieren
+bg_image = cv2.cvtColor(disp_img, cv2.COLOR_BGR2RGB)
+bg_image = Image.fromarray(bg_image)
+
+st.markdown("### 🖱️ Klick ins Bild, um Punkte zu setzen oder zu löschen")
+
+canvas_result = st_canvas(
+    fill_color="rgba(255, 0, 0, 0.3)",
+    stroke_width=0,
+    background_image=bg_image,   # <--- hier jetzt PIL-Objekt
+    update_streamlit=True,
+    height=disp_img.shape[0],
+    width=disp_img.shape[1],
+    drawing_mode="point",
+    key="canvas_click"
+)
 
 # ==========================================================
 # Hilfsfunktionen
