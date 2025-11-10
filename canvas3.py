@@ -155,6 +155,10 @@ for key in default_lists:
         else:
             st.session_state[key] = []
 
+# 👉 neues Flag zum Ignorieren des allerersten Klicks
+if "first_click_ignored" not in st.session_state:
+    st.session_state.first_click_ignored = False
+
 # -------------------- File upload --------------------
 uploaded_file = st.file_uploader("🔍 Bild hochladen", type=["jpg", "jpeg", "png", "tif", "tiff"])
 if not uploaded_file:
@@ -256,30 +260,35 @@ coords = streamlit_image_coordinates(Image.fromarray(marked_disp), key=f"clickab
 if coords:
     x, y = int(coords["x"]), int(coords["y"])
 
-    if delete_mode:
-        for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
-            st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
-        st.info("Punkt(e) gelöscht (falls gefunden).")
+    # 👉 Ersten Klick global ignorieren
+    if not st.session_state.first_click_ignored:
+        st.session_state.first_click_ignored = True
+        st.info("⏳ Erster Klick wurde ignoriert (Initialisierung).")
+    else:
+        if delete_mode:
+            for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
+                st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
+            st.info("Punkt(e) gelöscht (falls gefunden).")
 
-    elif aec_mode:
-        st.session_state.aec_cal_points.append((x, y))
-        st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
+        elif aec_mode:
+            st.session_state.aec_cal_points.append((x, y))
+            st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-    elif hema_mode:
-        st.session_state.hema_cal_points.append((x, y))
-        st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
+        elif hema_mode:
+            st.session_state.hema_cal_points.append((x, y))
+            st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-    elif bg_mode:
-        st.session_state.bg_cal_points.append((x, y))
-        st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
+        elif bg_mode:
+            st.session_state.bg_cal_points.append((x, y))
+            st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-    elif manual_aec_mode:
-        st.session_state.manual_aec.append((x, y))
-        st.info(f"✋ Manuell: AEC-Punkt ({x}, {y})")
+        elif manual_aec_mode:
+            st.session_state.manual_aec.append((x, y))
+            st.info(f"✋ Manuell: AEC-Punkt ({x}, {y})")
 
-    elif manual_hema_mode:
-        st.session_state.manual_hema.append((x, y))
-        st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x}, {y})")
+        elif manual_hema_mode:
+            st.session_state.manual_hema.append((x, y))
+            st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x}, {y})")
 
 # Deduplication
 for k in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
