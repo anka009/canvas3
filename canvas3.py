@@ -100,14 +100,30 @@ def load_last_calibration(path="kalibrierung.json"):
 st.set_page_config(page_title="Zellkern-Zähler (Auto-Kalib)", layout="wide")
 st.title("🧬 Zellkern-Zähler – Auto-Kalibrierung")
 
-# -------------------- Session State --------------------
-keys = ["aec_cal_points","hema_cal_points","bg_cal_points","aec_auto","hema_auto","manual_aec","manual_hema",
-        "aec_hsv","hema_hsv","bg_hsv","last_file","disp_width","last_auto_run"]
-for k in keys:
-    if k not in st.session_state:
-        st.session_state[k] = [] if "points" in k or "_auto" in k or "manual" in k else None
-st.session_state.disp_width = st.session_state.get("disp_width",1400)
-st.session_state.last_auto_run = st.session_state.get("last_auto_run",0)
+# -------------------- Session State: sichere Initialisierung --------------------
+default_lists = [
+    "aec_cal_points", "hema_cal_points", "bg_cal_points",   # temporäre Kalibrier-Punkte
+    "aec_auto", "hema_auto",                               # automatische Ergebnisse
+    "manual_aec", "manual_hema",                           # manuelle Punkte
+    "aec_hsv", "hema_hsv", "bg_hsv",                       # gespeicherte HSV-Kalibrierungen
+    "last_file", "disp_width", "last_auto_run"
+]
+
+for key in default_lists:
+    if key not in st.session_state:
+        if key in ["aec_hsv", "hema_hsv", "bg_hsv"]:
+            st.session_state[key] = None
+        elif key == "disp_width":
+            st.session_state[key] = 1400
+        elif key == "last_auto_run":
+            st.session_state[key] = 0
+        else:
+            st.session_state[key] = []
+
+# Defensive Sicherung: falls last_auto_run mal None ist
+if st.session_state.last_auto_run is None:
+    st.session_state.last_auto_run = 0
+
 
 # -------------------- File Upload --------------------
 uploaded_file = st.file_uploader("🔍 Bild hochladen", type=["jpg","jpeg","png","tif","tiff"])
