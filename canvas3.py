@@ -184,11 +184,11 @@ marked_disp=image_disp.copy()
 
 # draw cal points
 for (x,y) in st.session_state.aec_cal_points:
-    cv2.circle(marked_disp,(x,y),max(2,circle_radius//2),(0,120,200),-1)
+    cv2.circle(marked_disp,(x,y),max(2,circle_radius),(0,120,200),-1)
 for (x,y) in st.session_state.hema_cal_points:
-    cv2.circle(marked_disp,(x,y),max(2,circle_radius//2),(200,120,0),-1)
+    cv2.circle(marked_disp,(x,y),max(2,circle_radius),(200,120,0),-1)
 for (x,y) in st.session_state.bg_cal_points:
-    cv2.circle(marked_disp,(x,y),max(2,circle_radius//2),(200,200,0),-1)
+    cv2.circle(marked_disp,(x,y),max(2,circle_radius),(200,200,0),-1)
 
 # draw manual points
 for (x,y) in st.session_state.manual_aec: cv2.circle(marked_disp,(x,y),circle_radius,(0,165,255),-1)
