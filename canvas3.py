@@ -228,21 +228,15 @@ if st.sidebar.button("🧹 Alle markierten & manuellen Punkte löschen"):
         st.session_state[k] = []
     st.success("Alle Punkte gelöscht.")
 
-if st.sidebar.button("💾 Letzte Kalibrierung speichern"):
-    save_last_calibration()
-
-if st.sidebar.button("📂 Letzte Kalibrierung laden"):
-    load_last_calibration()
-
 # -------------------- Bildanzeige mit Markierungen --------------------
 marked_disp = image_disp.copy()
 # draw calibration input points (small filled)
 for (x, y) in st.session_state.aec_cal_points:
-    cv2.circle(marked_disp, (x, y), max(2, circle_radius//2), (0, 120, 200), -1)  # teal-ish - aec cal
+    cv2.circle(marked_disp, (x, y), max(2, circle_radius), (0, 120, 200), -1)  # teal-ish - aec cal
 for (x, y) in st.session_state.hema_cal_points:
-    cv2.circle(marked_disp, (x, y), max(2, circle_radius//2), (200, 120, 0), -1)  # orange-ish - hema cal
+    cv2.circle(marked_disp, (x, y), max(2, circle_radius), (200, 120, 0), -1)  # orange-ish - hema cal
 for (x, y) in st.session_state.bg_cal_points:
-    cv2.circle(marked_disp, (x, y), max(2, circle_radius//2), (200, 200, 0), -1)  # yellow - bg cal
+    cv2.circle(marked_disp, (x, y), max(2, circle_radius), (200, 200, 0), -1)  # yellow - bg cal
 
 # draw manual points (filled)
 for (x, y) in st.session_state.manual_aec:
