@@ -89,6 +89,27 @@ def apply_hue_wrap(hsv_img, hmin, hmax, smin, smax, vmin, vmax):
 def ensure_odd(k):
     return k if k % 2 == 1 else k + 1
 
+def save_last_calibration(path="kalibrierung.json"):
+    data = {
+        "aec_hsv": st.session_state.get("aec_hsv").tolist() if st.session_state.get("aec_hsv") is not None else None,
+        "hema_hsv": st.session_state.get("hema_hsv").tolist() if st.session_state.get("hema_hsv") is not None else None,
+        "bg_hsv": st.session_state.get("bg_hsv").tolist() if st.session_state.get("bg_hsv") is not None else None
+    }
+    with open(path, "w") as f:
+        json.dump(data, f)
+    st.success("💾 Kalibrierung gespeichert.")
+
+def load_last_calibration(path="kalibrierung.json"):
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        st.session_state.aec_hsv = np.array(data.get("aec_hsv")) if data.get("aec_hsv") else None
+        st.session_state.hema_hsv = np.array(data.get("hema_hsv")) if data.get("hema_hsv") else None
+        st.session_state.bg_hsv = np.array(data.get("bg_hsv")) if data.get("bg_hsv") else None
+        st.success("✅ Letzte Kalibrierung geladen.")
+    except FileNotFoundError:
+        st.warning("⚠️ Keine gespeicherte Kalibrierung gefunden.")
+
 # -------------------- Streamlit Setup --------------------
 st.set_page_config(page_title="Zellkern-Zähler (Auto-Kalib)", layout="wide")
 st.title("🧬 Zellkern-Zähler – Auto-Kalibrierung (AEC / Hämatoxylin)")
@@ -184,6 +205,12 @@ if st.sidebar.button("🧹 Alles löschen"):
         st.session_state[k] = None
     st.success("✅ Alles gelöscht.")
 
+if st.sidebar.button("💾 Letzte Kalibrierung speichern"):
+    save_last_calibration()
+
+if st.sidebar.button("📂 Letzte Kalibrierung laden"):
+    load_last_calibration()
+
 # -------------------- Bildanzeige --------------------
 marked_disp = image_disp.copy()
 
@@ -209,51 +236,32 @@ for (x,y) in st.session_state.hema_auto:
 
 coords = streamlit_image_coordinates(Image.fromarray(marked_disp), key=f"clickable_image_{st.session_state.last_file}", width=DISPLAY_WIDTH)
 
-# Session State initialisieren
-for key in ["aec_points", "hema_points", "bg_points",
-            "manual_aec_points", "manual_hema_points"]:
-    if key not in st.session_state:
-        st.session_state[key] = []
-
 # -------------------- Klicklogik --------------------
-
 if coords:
-    x, y = int(coords["x"]), int(coords["y"])
-
+    x,y = int(coords["x"]), int(coords["y"])
     if delete_mode:
-        # Beispiel: letzten Punkt löschen
-        for k in ["aec_points", "hema_points", "bg_points",
-                  "manual_aec_points", "manual_hema_points"]:
-            if st.session_state[k]:
-                st.session_state[k].pop()
-
+        for key in ["aec_cal_points","hema_cal_points","bg_cal_points","manual_aec","manual_hema","aec_auto","hema_auto"]:
+            st.session_state[key] = [p for p in st.session_state[key] if not is_near(p,(x,y),circle_radius)]
+        st.info("Punkt(e) gelöscht (falls gefunden).")
     elif aec_mode:
-        # Punkt für AEC speichern
-        st.session_state["aec_points"].append((x, y))
-
+        st.session_state.aec_cal_points.append((x,y))
+        st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x},{y})")
     elif hema_mode:
-        # Punkt für HEMA speichern
-        st.session_state["hema_points"].append((x, y))
-
+        st.session_state.hema_cal_points.append((x,y))
+        st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x},{y})")
     elif bg_mode:
-        # Punkt für Hintergrund speichern
-        st.session_state["bg_points"].append((x, y))
-
+        st.session_state.bg_cal_points.append((x,y))
+        st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x},{y})")
     elif manual_aec_mode:
-        # Punkt für manuelle AEC speichern
-        st.session_state["manual_aec_points"].append((x, y))
-
+        st.session_state.manual_aec.append((x,y))
+        st.info(f"✋ Manuell: AEC-Punkt ({x},{y})")
     elif manual_hema_mode:
-        # Punkt für manuelle HEMA speichern
-        st.session_state["manual_hema_points"].append((x, y))
+        st.session_state.manual_hema.append((x,y))
+        st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x},{y})")
 
-    # Doppelte Punkte entfernen
-    for k in ["aec_points", "hema_points", "bg_points",
-              "manual_aec_points", "manual_hema_points"]:
-        st.session_state[k] = dedup_points(st.session_state[k])
-
-    # 🧹 Koordinaten zurücksetzen, damit sie nicht übernommen werden
-    coords = None
+# Deduplication
+for k in ["aec_cal_points","hema_cal_points","bg_cal_points","manual_aec","manual_hema","aec_auto","hema_auto"]:
+    st.session_state[k] = dedup_points(st.session_state[k], min_dist=max(4,circle_radius//2))
 
 # -------------------- Auto-Kalibrierung --------------------
 def auto_calibrate_from_calpoints(name, cal_key, hsv_key):
