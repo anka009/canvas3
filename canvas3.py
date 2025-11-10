@@ -1,4 +1,4 @@
-# canvas2_auto_calib_fixed.py
+# canvas2_auto_calib_final_fixed.py
 import streamlit as st
 import cv2
 import numpy as np
@@ -61,7 +61,7 @@ def compute_hsv_range(points, hsv_img, radius=5):
     s_max = min(255, int(round(s_med+tol_s)))
     v_min = max(0, int(round(v_med-tol_v)))
     v_max = min(255, int(round(v_med+tol_v)))
-    return (h_min,h_max,s_min,s_max,v_min,v_max)
+    return (h_min,h_max,s_min,s_max,v_min,vmax)
 
 def apply_hue_wrap(hsv_img, hmin,hmax,smin,smax,vmin,vmax):
     if hmin<=hmax:
@@ -103,51 +103,62 @@ st.title("🧬 Zellkern-Zähler – Auto-Kalibrierung")
 # -------------------- Session State --------------------
 default_lists = [
     "aec_cal_points","hema_cal_points","bg_cal_points",
-    "aec_auto","hema_auto",
-    "manual_aec","manual_hema",
+    "aec_auto","hema_auto","manual_aec","manual_hema",
     "aec_hsv","hema_hsv","bg_hsv",
-    "last_file","disp_width","last_auto_run"
+    "last_file","disp_width","last_auto_run",
+    "last_click_reset"
 ]
+
 for key in default_lists:
     if key not in st.session_state:
-        if key in ["aec_hsv","hema_hsv","bg_hsv"]: st.session_state[key]=None
-        elif key=="disp_width": st.session_state[key]=1400
-        elif key=="last_auto_run": st.session_state[key]=0
-        else: st.session_state[key]=[]
+        if key in ["aec_hsv","hema_hsv","bg_hsv"]:
+            st.session_state[key] = None
+        elif key=="disp_width":
+            st.session_state[key]=1400
+        elif key=="last_auto_run":
+            st.session_state[key]=0
+        elif key=="last_click_reset":
+            st.session_state[key]=True
+        else:
+            st.session_state[key]=[]
 
 # -------------------- File Upload --------------------
 uploaded_file = st.file_uploader("🔍 Bild hochladen", type=["jpg","jpeg","png","tif","tiff"])
-if not uploaded_file: st.stop()
+if not uploaded_file:
+    st.info("Bitte zuerst ein Bild hochladen.")
+    st.stop()
 
 if uploaded_file.name != st.session_state.last_file:
+    # Reset bei neuem Bild
     for k in ["aec_cal_points","hema_cal_points","bg_cal_points","aec_auto","hema_auto","manual_aec","manual_hema"]:
         st.session_state[k]=[]
     for k in ["aec_hsv","hema_hsv","bg_hsv"]:
         st.session_state[k]=None
-    st.session_state.last_file=uploaded_file.name
+    st.session_state.last_file = uploaded_file.name
+    st.session_state.last_click_reset = True
 
 # -------------------- Bild vorbereiten --------------------
 DISPLAY_WIDTH = st.slider("📐 Bildbreite",400,2000,st.session_state.disp_width,step=100)
 st.session_state.disp_width = DISPLAY_WIDTH
 image_orig = np.array(Image.open(uploaded_file).convert("RGB"))
 H_orig,W_orig = image_orig.shape[:2]
-scale = DISPLAY_WIDTH/W_orig
+scale = DISPLAY_WIDTH / W_orig
 image_disp = cv2.resize(image_orig,(DISPLAY_WIDTH,int(H_orig*scale)),interpolation=cv2.INTER_AREA)
-hsv_disp = cv2.cvtColor(image_disp,cv2.COLOR_RGB2HSV)
+hsv_disp = cv2.cvtColor(image_disp, cv2.COLOR_RGB2HSV)
 
 # -------------------- Sidebar --------------------
 st.sidebar.markdown("### ⚙️ Filter & Kalibrierung")
 blur_kernel = ensure_odd(st.sidebar.slider("🔧 Blur",1,21,5))
 min_area = st.sidebar.number_input("📏 Mindestfläche",10,2000,100)
 alpha = st.sidebar.slider("🌗 Alpha (Kontrast)",0.1,3.0,1.0,step=0.1)
-circle_radius = st.sidebar.slider("⚪ Kreisradius",1,20,5)
+circle_radius = st.sidebar.slider("⚪ Kreisradius (Display-Px)",1,20,5)
 calib_radius = st.sidebar.slider("🎯 Kalibrierungsradius",1,15,5)
 min_points_calib = st.sidebar.slider("🧮 Minimale Punkte für Auto-Kalib",1,10,3)
 
 st.sidebar.markdown("### 🎨 Modus")
 mode = st.sidebar.radio("Modus",["Keine","AEC Kalibrier-Punkt setzen","Hämatoxylin Kalibrier-Punkt setzen",
-                                  "Hintergrund Kalibrier-Punkt setzen","AEC manuell hinzufügen",
-                                  "Hämatoxylin manuell hinzufügen","Punkt löschen"],index=0)
+                                   "Hintergrund Kalibrier-Punkt setzen","AEC manuell hinzufügen",
+                                   "Hämatoxylin manuell hinzufügen","Punkt löschen"],index=0)
 
 # -------------------- Clean Start beim Moduswechsel --------------------
 if mode=="AEC Kalibrier-Punkt setzen": st.session_state.aec_cal_points=[]
@@ -155,6 +166,9 @@ elif mode=="Hämatoxylin Kalibrier-Punkt setzen": st.session_state.hema_cal_poin
 elif mode=="Hintergrund Kalibrier-Punkt setzen": st.session_state.bg_cal_points=[]
 elif mode=="AEC manuell hinzufügen": st.session_state.manual_aec=[]
 elif mode=="Hämatoxylin manuell hinzufügen": st.session_state.manual_hema=[]
+elif mode=="Punkt löschen":
+    # Löschenmodus: nichts extra resetten
+    st.session_state.last_click_reset=False
 
 aec_mode = mode=="AEC Kalibrier-Punkt setzen"
 hema_mode = mode=="Hämatoxylin Kalibrier-Punkt setzen"
@@ -163,54 +177,42 @@ manual_aec_mode = mode=="AEC manuell hinzufügen"
 manual_hema_mode = mode=="Hämatoxylin manuell hinzufügen"
 delete_mode = mode=="Punkt löschen"
 
-# -------------------- Schnellaktionen --------------------
+st.sidebar.markdown("### ⚡ Schnellaktionen")
 if st.sidebar.button("🧹 Alles löschen"):
     for k in ["aec_cal_points","hema_cal_points","bg_cal_points","aec_auto","hema_auto","manual_aec","manual_hema"]:
         st.session_state[k]=[]
     for k in ["aec_hsv","hema_hsv","bg_hsv"]:
         st.session_state[k]=None
+    st.session_state.last_auto_run=0
+    st.session_state.last_click_reset=True
 
 # -------------------- Bildanzeige + Klicklogik --------------------
 marked_disp = image_disp.copy()
 
-# Kalibrierpunkte
-for (x, y) in st.session_state.aec_cal_points: cv2.circle(marked_disp,(x,y),max(4,circle_radius),(0,120,200),-1)
-for (x, y) in st.session_state.hema_cal_points: cv2.circle(marked_disp,(x,y),max(4,circle_radius),(200,120,0),-1)
-for (x, y) in st.session_state.bg_cal_points: cv2.circle(marked_disp,(x,y),max(4,circle_radius),(200,200,0),-1)
+# --- Kalibrierpunkte größer darstellen ---
+for (x, y) in st.session_state.aec_cal_points:
+    cv2.circle(marked_disp, (x, y), max(4, circle_radius), (0, 120, 200), -1)
+for (x, y) in st.session_state.hema_cal_points:
+    cv2.circle(marked_disp, (x, y), max(4, circle_radius), (200, 120, 0), -1)
+for (x, y) in st.session_state.bg_cal_points:
+    cv2.circle(marked_disp, (x, y), max(4, circle_radius), (200, 200, 0), -1)
 
-# Manuelle Punkte
-for (x, y) in st.session_state.manual_aec: cv2.circle(marked_disp,(x,y),circle_radius,(0,165,255),-1)
-for (x, y) in st.session_state.manual_hema: cv2.circle(marked_disp,(x,y),circle_radius,(128,0,128),-1)
+# --- Manuelle Punkte ---
+for (x, y) in st.session_state.manual_aec:
+    cv2.circle(marked_disp, (x, y), circle_radius, (0, 165, 255), -1)
+for (x, y) in st.session_state.manual_hema:
+    cv2.circle(marked_disp, (x, y), circle_radius, (128, 0, 128), -1)
 
-# Auto-Punkte
-for (x, y) in st.session_state.aec_auto: cv2.circle(marked_disp,(x,y),circle_radius,(0,0,255),2)
-for (x, y) in st.session_state.hema_auto: cv2.circle(marked_disp,(x,y),circle_radius,(255,0,0),2)
+# --- Auto-Punkte (nur Outline) ---
+for (x, y) in st.session_state.aec_auto:
+    cv2.circle(marked_disp, (x, y), circle_radius, (0, 0, 255), 2)
+for (x, y) in st.session_state.hema_auto:
+    cv2.circle(marked_disp, (x, y), circle_radius, (255, 0, 0), 2)
 
-# -------------------- Koordinaten erfassen --------------------
+# --- Koordinaten erfassen ---
 coords = streamlit_image_coordinates(Image.fromarray(marked_disp),
                                      key=f"clickable_image_{st.session_state.last_auto_run}_{st.session_state.last_file}",
                                      width=DISPLAY_WIDTH)
-
-# -------------------- Clean Start beim Moduswechsel --------------------
-# Wir setzen ein Flag, damit der erste Klick nach Moduswechsel nicht sofort zählt
-if "last_click_reset" not in st.session_state:
-    st.session_state.last_click_reset = False
-
-if mode=="AEC Kalibrier-Punkt setzen":
-    st.session_state.aec_cal_points=[]
-    st.session_state.last_click_reset = True
-elif mode=="Hämatoxylin Kalibrier-Punkt setzen":
-    st.session_state.hema_cal_points=[]
-    st.session_state.last_click_reset = True
-elif mode=="Hintergrund Kalibrier-Punkt setzen":
-    st.session_state.bg_cal_points=[]
-    st.session_state.last_click_reset = True
-elif mode=="AEC manuell hinzufügen":
-    st.session_state.manual_aec=[]
-    st.session_state.last_click_reset = True
-elif mode=="Hämatoxylin manuell hinzufügen":
-    st.session_state.manual_hema=[]
-    st.session_state.last_click_reset = True
 
 # -------------------- Klicklogik --------------------
 if coords and "x" in coords and "y" in coords:
@@ -218,34 +220,37 @@ if coords and "x" in coords and "y" in coords:
 
     if delete_mode:
         # Auto- und manuelle Punkte löschen
-        for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points",
-                    "manual_aec", "manual_hema", "aec_auto", "hema_auto"]:
-            st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
+        for key in ["aec_cal_points","hema_cal_points","bg_cal_points","manual_aec","manual_hema","aec_auto","hema_auto"]:
+            st.session_state[key] = [p for p in st.session_state[key] if not is_near(p,(x,y),circle_radius)]
         st.info("Punkt(e) gelöscht (inkl. Auto-Punkte).")
-        st.session_state.last_click_reset = True  # Reset Flag nach Löschen
-
+        st.session_state.last_click_reset=True
     else:
-        # Wenn Modus gerade gewechselt: ersten Klick überspringen
-        if st.session_state.last_click_reset:
-            st.session_state.last_click_reset = False
+        # Guard für ersten Klick nach Moduswechsel
+        skip_first = (aec_mode or hema_mode or bg_mode or manual_aec_mode or manual_hema_mode)
+        if skip_first and st.session_state.last_click_reset:
+            st.session_state.last_click_reset=False
         else:
             if aec_mode:
-                st.session_state.aec_cal_points.append((x, y))
-                st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
+                st.session_state.aec_cal_points.append((x,y))
+                st.info(f"📍 AEC-Kalibrierpunkt ({x},{y})")
             elif hema_mode:
-                st.session_state.hema_cal_points.append((x, y))
-                st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
+                st.session_state.hema_cal_points.append((x,y))
+                st.info(f"📍 Hämatoxylin-Kalibrierpunkt ({x},{y})")
             elif bg_mode:
-                st.session_state.bg_cal_points.append((x, y))
-                st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
+                st.session_state.bg_cal_points.append((x,y))
+                st.info(f"📍 Hintergrund-Kalibrierpunkt ({x},{y})")
             elif manual_aec_mode:
-                if not any(is_near((x, y), p, circle_radius) for p in st.session_state.manual_aec):
-                    st.session_state.manual_aec.append((x, y))
-                    st.info(f"✋ Manuell: AEC-Punkt ({x}, {y})")
+                if not any(is_near((x,y),p,circle_radius) for p in st.session_state.manual_aec):
+                    st.session_state.manual_aec.append((x,y))
+                    st.info(f"✋ Manuell: AEC-Punkt ({x},{y})")
             elif manual_hema_mode:
-                if not any(is_near((x, y), p, circle_radius) for p in st.session_state.manual_hema):
-                    st.session_state.manual_hema.append((x, y))
-                    st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x}, {y})")
+                if not any(is_near((x,y),p,circle_radius) for p in st.session_state.manual_hema):
+                    st.session_state.manual_hema.append((x,y))
+                    st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x},{y})")
+
+# --- Dedup ---
+for k in ["aec_cal_points","hema_cal_points","bg_cal_points","manual_aec","manual_hema","aec_auto","hema_auto"]:
+    st.session_state[k] = dedup_points(st.session_state[k], min_dist=max(4,circle_radius//2))
 
 # -------------------- Auto-Kalibrierung --------------------
 def auto_cal(category, cal_key, hsv_key):
@@ -263,15 +268,15 @@ auto_cal("Hämatoxylin","hema_cal_points","hema_hsv")
 if len(st.session_state.bg_cal_points)>=min_points_calib:
     hsv_bg = compute_hsv_range(st.session_state.bg_cal_points,hsv_disp,radius=calib_radius)
     if hsv_bg is not None:
-        st.session_state.bg_hsv = hsv_bg
+        st.session_state.bg_hsv=hsv_bg
         st.session_state.bg_cal_points=[]
         st.session_state.last_auto_run += 1
 
 # -------------------- Auto-Erkennung --------------------
 if st.session_state.last_auto_run>0:
     proc = cv2.convertScaleAbs(image_disp,alpha=alpha,beta=0)
-    if blur_kernel>1: proc=cv2.GaussianBlur(proc,(ensure_odd(blur_kernel),ensure_odd(blur_kernel)),0)
-    hsv_proc=cv2.cvtColor(proc,cv2.COLOR_RGB2HSV)
+    if blur_kernel>1: proc = cv2.GaussianBlur(proc,(ensure_odd(blur_kernel),ensure_odd(blur_kernel)),0)
+    hsv_proc = cv2.cvtColor(proc,cv2.COLOR_RGB2HSV)
 
     mask_aec = apply_hue_wrap(hsv_proc,*st.session_state.aec_hsv) if st.session_state.aec_hsv is not None else np.zeros(hsv_proc.shape[:2],dtype=np.uint8)
     mask_hema = apply_hue_wrap(hsv_proc,*st.session_state.hema_hsv) if st.session_state.hema_hsv is not None else np.zeros(hsv_proc.shape[:2],dtype=np.uint8)
@@ -280,20 +285,20 @@ if st.session_state.last_auto_run>0:
         mask_aec = cv2.bitwise_and(mask_aec,cv2.bitwise_not(mask_bg))
         mask_hema = cv2.bitwise_and(mask_hema,cv2.bitwise_not(mask_bg))
 
-    kernel=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
-    mask_aec=cv2.morphologyEx(mask_aec,cv2.MORPH_OPEN,kernel)
-    mask_hema=cv2.morphologyEx(mask_hema,cv2.MORPH_OPEN,kernel)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+    mask_aec = cv2.morphologyEx(mask_aec,cv2.MORPH_OPEN,kernel)
+    mask_hema = cv2.morphologyEx(mask_hema,cv2.MORPH_OPEN,kernel)
 
-    st.session_state.aec_auto=dedup_points(get_centers(mask_aec,min_area=int(min_area)),min_dist=max(4,circle_radius//2))
-    st.session_state.hema_auto=dedup_points(get_centers(mask_hema,min_area=int(min_area)),min_dist=max(4,circle_radius//2))
-    st.session_state.last_auto_run=0
+    st.session_state.aec_auto = dedup_points(get_centers(mask_aec,min_area=int(min_area)),min_dist=max(4,circle_radius//2))
+    st.session_state.hema_auto = dedup_points(get_centers(mask_hema,min_area=int(min_area)),min_dist=max(4,circle_radius//2))
+    st.session_state.last_auto_run = 0
 
 # -------------------- Anzeige + CSV --------------------
-aec_auto, aec_manual = st.session_state.aec_auto, st.session_state.manual_aec
-hema_auto, hema_manual = st.session_state.hema_auto, st.session_state.manual_hema
+aec_auto,aec_manual = st.session_state.aec_auto, st.session_state.manual_aec
+hema_auto,hema_manual = st.session_state.hema_auto, st.session_state.manual_hema
 
 st.markdown("### 📊 Ergebnisse")
-colA,colB=st.columns(2)
+colA,colB = st.columns(2)
 with colA:
     st.metric("AEC (auto)",len(aec_auto))
     st.metric("AEC (manuell)",len(aec_manual))
@@ -301,7 +306,7 @@ with colB:
     st.metric("Hämatoxylin (auto)",len(hema_auto))
     st.metric("Hämatoxylin (manuell)",len(hema_manual))
 
-result_img=image_disp.copy()
+result_img = image_disp.copy()
 for x,y in aec_auto: cv2.circle(result_img,(x,y),circle_radius,(0,0,255),2)
 for x,y in hema_auto: cv2.circle(result_img,(x,y),circle_radius,(255,0,0),2)
 for x,y in aec_manual: cv2.circle(result_img,(x,y),circle_radius,(0,165,255),-1)
@@ -315,7 +320,17 @@ for x,y in hema_auto: rows.append({"X_display":x,"Y_display":y,"Type":"Hämatoxy
 for x,y in hema_manual: rows.append({"X_display":x,"Y_display":y,"Type":"Hämatoxylin","Source":"manual"})
 
 if rows:
-    df=pd.DataFrame(rows)
-    df["X_original"]=(df["X_display"]/scale).round().astype("Int64")
-    df["Y_original"]=(df["Y_display"]/scale).round().astype("Int64")
+    df = pd.DataFrame(rows)
+    df["X_original"] = (df["X_display"]/scale).round().astype("Int64")
+    df["Y_original"] = (df["Y_display"]/scale).round().astype("Int64")
     st.download_button("📥 CSV exportieren", data=df.to_csv(index=False).encode("utf-8"), file_name="zellkerne_final.csv", mime="text/csv")
+
+# -------------------- Debug Info --------------------
+with st.expander("🧠 Debug Info"):
+    debug_keys = [
+        "aec_hsv","hema_hsv","bg_hsv",
+        "aec_auto","hema_auto","manual_aec","manual_hema",
+        "aec_cal_points","hema_cal_points","bg_cal_points",
+        "last_auto_run","disp_width","last_file","last_click_reset"
+    ]
+    st.write({k: st.session_state.get(k,None) for k in debug_keys})
