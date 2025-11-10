@@ -191,39 +191,61 @@ coords = streamlit_image_coordinates(Image.fromarray(marked_disp),
                                      key=f"clickable_image_{st.session_state.last_auto_run}_{st.session_state.last_file}",
                                      width=DISPLAY_WIDTH)
 
+# -------------------- Clean Start beim Moduswechsel --------------------
+# Wir setzen ein Flag, damit der erste Klick nach Moduswechsel nicht sofort zählt
+if "last_click_reset" not in st.session_state:
+    st.session_state.last_click_reset = False
+
+if mode=="AEC Kalibrier-Punkt setzen":
+    st.session_state.aec_cal_points=[]
+    st.session_state.last_click_reset = True
+elif mode=="Hämatoxylin Kalibrier-Punkt setzen":
+    st.session_state.hema_cal_points=[]
+    st.session_state.last_click_reset = True
+elif mode=="Hintergrund Kalibrier-Punkt setzen":
+    st.session_state.bg_cal_points=[]
+    st.session_state.last_click_reset = True
+elif mode=="AEC manuell hinzufügen":
+    st.session_state.manual_aec=[]
+    st.session_state.last_click_reset = True
+elif mode=="Hämatoxylin manuell hinzufügen":
+    st.session_state.manual_hema=[]
+    st.session_state.last_click_reset = True
+
 # -------------------- Klicklogik --------------------
 if coords and "x" in coords and "y" in coords:
-    x,y = int(coords["x"]), int(coords["y"])
+    x, y = int(coords["x"]), int(coords["y"])
 
     if delete_mode:
-        for key in ["aec_cal_points","hema_cal_points","bg_cal_points","manual_aec","manual_hema","aec_auto","hema_auto"]:
-            st.session_state[key] = [p for p in st.session_state[key] if not is_near(p,(x,y),circle_radius)]
+        # Auto- und manuelle Punkte löschen
+        for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points",
+                    "manual_aec", "manual_hema", "aec_auto", "hema_auto"]:
+            st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
         st.info("Punkt(e) gelöscht (inkl. Auto-Punkte).")
-    
-    elif aec_mode:
-        if not any(is_near((x,y),p,calib_radius) for p in st.session_state.aec_cal_points):
-            st.session_state.aec_cal_points.append((x,y))
-            st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x},{y})")
-    elif hema_mode:
-        if not any(is_near((x,y),p,calib_radius) for p in st.session_state.hema_cal_points):
-            st.session_state.hema_cal_points.append((x,y))
-            st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x},{y})")
-    elif bg_mode:
-        if not any(is_near((x,y),p,calib_radius) for p in st.session_state.bg_cal_points):
-            st.session_state.bg_cal_points.append((x,y))
-            st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x},{y})")
-    elif manual_aec_mode:
-        if not any(is_near((x,y),p,circle_radius) for p in st.session_state.manual_aec):
-            st.session_state.manual_aec.append((x,y))
-            st.info(f"✋ Manuell: AEC-Punkt ({x},{y})")
-    elif manual_hema_mode:
-        if not any(is_near((x,y),p,circle_radius) for p in st.session_state.manual_hema):
-            st.session_state.manual_hema.append((x,y))
-            st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x},{y})")
+        st.session_state.last_click_reset = True  # Reset Flag nach Löschen
 
-# Dedup
-for k in ["aec_cal_points","hema_cal_points","bg_cal_points","manual_aec","manual_hema","aec_auto","hema_auto"]:
-    st.session_state[k] = dedup_points(st.session_state[k], min_dist=max(4,circle_radius//2))
+    else:
+        # Wenn Modus gerade gewechselt: ersten Klick überspringen
+        if st.session_state.last_click_reset:
+            st.session_state.last_click_reset = False
+        else:
+            if aec_mode:
+                st.session_state.aec_cal_points.append((x, y))
+                st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
+            elif hema_mode:
+                st.session_state.hema_cal_points.append((x, y))
+                st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
+            elif bg_mode:
+                st.session_state.bg_cal_points.append((x, y))
+                st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
+            elif manual_aec_mode:
+                if not any(is_near((x, y), p, circle_radius) for p in st.session_state.manual_aec):
+                    st.session_state.manual_aec.append((x, y))
+                    st.info(f"✋ Manuell: AEC-Punkt ({x}, {y})")
+            elif manual_hema_mode:
+                if not any(is_near((x, y), p, circle_radius) for p in st.session_state.manual_hema):
+                    st.session_state.manual_hema.append((x, y))
+                    st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x}, {y})")
 
 # -------------------- Auto-Kalibrierung --------------------
 def auto_cal(category, cal_key, hsv_key):
