@@ -155,9 +155,10 @@ for key in default_lists:
         else:
             st.session_state[key] = []
 
-# 👉 neues Flag zum Ignorieren des allerersten Klicks
-if "first_click_ignored" not in st.session_state:
-    st.session_state.first_click_ignored = False
+# 👉 Neue, gezielte "ersten Klick ignorieren"-Flags pro Kategorie
+for flag in ["aec_first_ignore", "hema_first_ignore", "bg_first_ignore"]:
+    if flag not in st.session_state:
+        st.session_state[flag] = True  # beim Start: ersten Klick ignorieren
 
 # -------------------- File upload --------------------
 uploaded_file = st.file_uploader("🔍 Bild hochladen", type=["jpg", "jpeg", "png", "tif", "tiff"])
@@ -207,7 +208,6 @@ st.sidebar.markdown("### 🎨 Modus auswählen")
 mode = st.sidebar.radio(
     "Modus",
     [
-        "Keine",
         "AEC Kalibrier-Punkt setzen",
         "Hämatoxylin Kalibrier-Punkt setzen",
         "Hintergrund Kalibrier-Punkt setzen",
@@ -224,6 +224,18 @@ bg_mode = mode == "Hintergrund Kalibrier-Punkt setzen"
 manual_aec_mode = mode == "AEC manuell hinzufügen"
 manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
 delete_mode = mode == "Punkt löschen"
+# Wenn der Modus gewechselt wird, jeweiligen Ignore-Flag wieder aktivieren
+if "prev_mode" not in st.session_state:
+    st.session_state.prev_mode = None
+
+if mode != st.session_state.prev_mode:
+    if "AEC" in mode:
+        st.session_state.aec_first_ignore = True
+    if "Hämatoxylin" in mode:
+        st.session_state.hema_first_ignore = True
+    if "Hintergrund" in mode:
+        st.session_state.bg_first_ignore = True
+    st.session_state.prev_mode = mode
 
 # Quick actions
 st.sidebar.markdown("### ⚡ Schnellaktionen")
@@ -271,16 +283,28 @@ if coords:
             st.info("Punkt(e) gelöscht (falls gefunden).")
 
         elif aec_mode:
-            st.session_state.aec_cal_points.append((x, y))
-            st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
+            if st.session_state.aec_first_ignore:
+                st.session_state.aec_first_ignore = False
+                st.info("⏳ Erster AEC-Klick ignoriert (Initialisierung).")
+            else:
+                st.session_state.aec_cal_points.append((x, y))
+                st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
         elif hema_mode:
-            st.session_state.hema_cal_points.append((x, y))
-            st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
+            if st.session_state.hema_first_ignore:
+                st.session_state.hema_first_ignore = False
+                st.info("⏳ Erster Hämatoxylin-Klick ignoriert (Initialisierung).")
+            else:
+                st.session_state.hema_cal_points.append((x, y))
+                st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
         elif bg_mode:
-            st.session_state.bg_cal_points.append((x, y))
-            st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
+            if st.session_state.bg_first_ignore:
+                st.session_state.bg_first_ignore = False
+                st.info("⏳ Erster Hintergrund-Klick ignoriert (Initialisierung).")
+            else:
+                st.session_state.bg_cal_points.append((x, y))
+                st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
         elif manual_aec_mode:
             st.session_state.manual_aec.append((x, y))
