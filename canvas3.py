@@ -162,11 +162,17 @@ mode = st.sidebar.radio("Modus",["Keine","AEC Kalibrier-Punkt setzen","Hämatoxy
                                    "Hämatoxylin manuell hinzufügen","Punkt löschen"],index=0)
 
 # -------------------- Clean Start beim Moduswechsel --------------------
+coords = None  # <-- reset letzte Klick-Koordinaten
+
 if mode=="AEC Kalibrier-Punkt setzen": st.session_state.aec_cal_points=[]
 elif mode=="Hämatoxylin Kalibrier-Punkt setzen": st.session_state.hema_cal_points=[]
 elif mode=="Hintergrund Kalibrier-Punkt setzen": st.session_state.bg_cal_points=[]
 elif mode=="AEC manuell hinzufügen": st.session_state.manual_aec=[]
 elif mode=="Hämatoxylin manuell hinzufügen": st.session_state.manual_hema=[]
+elif mode=="Punkt löschen":
+    # Optional: auch hier alle Koordinaten/Auto-Punkte löschen, um "Geisterpunkte" zu vermeiden
+    st.session_state.aec_auto=[]
+    st.session_state.hema_auto=[]
 
 aec_mode = mode=="AEC Kalibrier-Punkt setzen"
 hema_mode = mode=="Hämatoxylin Kalibrier-Punkt setzen"
