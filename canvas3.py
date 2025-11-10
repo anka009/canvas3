@@ -181,11 +181,8 @@ if st.sidebar.button("🧹 Alles löschen"):
         if "points" in k or "_auto" in k or "manual" in k: st.session_state[k]=[]
         else: st.session_state[k]=None
 
-if st.sidebar.button("💾 Letzte Kalibrierung speichern"): save_last_calibration()
-if st.sidebar.button("📂 Letzte Kalibrierung laden"): load_last_calibration()
-
 # -------------------- Bildanzeige + Klicklogik --------------------
-# -------------------- Bildanzeige mit Markierungen --------------------
+
 marked_disp = image_disp.copy()
 
 # --- Kalibrierpunkte größer darstellen ---
@@ -323,7 +320,3 @@ if rows:
     df["X_original"] = (df["X_display"]/scale).round().astype("Int64")
     df["Y_original"] = (df["Y_display"]/scale).round().astype("Int64")
     st.download_button("📥 CSV exportieren", data=df.to_csv(index=False).encode("utf-8"), file_name="zellkerne_final.csv", mime="text/csv")
-
-# -------------------- Debug Info --------------------
-with st.expander("🧠 Debug Info"):
-    st.write({k:st.session_state.get(k) for k in keys})
