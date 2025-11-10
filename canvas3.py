@@ -209,8 +209,14 @@ for (x,y) in st.session_state.hema_auto:
 
 coords = streamlit_image_coordinates(Image.fromarray(marked_disp), key=f"clickable_image_{st.session_state.last_file}", width=DISPLAY_WIDTH)
 
+# Session State initialisieren
+for key in ["aec_points", "hema_points", "bg_points",
+            "manual_aec_points", "manual_hema_points"]:
+    if key not in st.session_state:
+        st.session_state[key] = []
+
 # -------------------- Klicklogik --------------------
-# Klicklogik für Bildkoordinaten
+
 if coords:
     x, y = int(coords["x"]), int(coords["y"])
 
