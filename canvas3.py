@@ -182,63 +182,70 @@ if st.sidebar.button("🧹 Alles löschen"):
 if st.sidebar.button("💾 Kalibrierung speichern"): save_last_calibration()
 if st.sidebar.button("📂 Kalibrierung laden"): load_last_calibration()
 
-# -------------------- Interaktive Bildanzeige --------------------
-marked_disp=image_disp.copy()
+# -------------------- Bildanzeige mit Markierungen --------------------
+marked_disp = image_disp.copy()
+# draw calibration input points (small filled)
+for (x, y) in st.session_state.aec_cal_points:
+    cv2.circle(marked_disp, (x, y), max(2, circle_radius//2), (0, 120, 200), -1)  # teal-ish - aec cal
+for (x, y) in st.session_state.hema_cal_points:
+    cv2.circle(marked_disp, (x, y), max(2, circle_radius//2), (200, 120, 0), -1)  # orange-ish - hema cal
+for (x, y) in st.session_state.bg_cal_points:
+    cv2.circle(marked_disp, (x, y), max(2, circle_radius//2), (200, 200, 0), -1)  # yellow - bg cal
 
-# draw cal points
-for (x,y) in st.session_state.aec_cal_points:
-    cv2.circle(marked_disp,(x,y),max(2,circle_radius//2),(0,120,200),-1)
-for (x,y) in st.session_state.hema_cal_points:
-    cv2.circle(marked_disp,(x,y),max(2,circle_radius//2),(200,120,0),-1)
-for (x,y) in st.session_state.bg_cal_points:
-    cv2.circle(marked_disp,(x,y),max(2,circle_radius//2),(200,200,0),-1)
+# draw manual points (filled)
+for (x, y) in st.session_state.manual_aec:
+    cv2.circle(marked_disp, (x, y), circle_radius, (0, 165, 255), -1)  # orange filled = manual aec
+for (x, y) in st.session_state.manual_hema:
+    cv2.circle(marked_disp, (x, y), circle_radius, (128, 0, 128), -1)  # purple filled = manual hema
 
-# draw manual points
-for (x,y) in st.session_state.manual_aec: cv2.circle(marked_disp,(x,y),circle_radius,(0,165,255),-1)
-for (x,y) in st.session_state.manual_hema: cv2.circle(marked_disp,(x,y),circle_radius,(128,0,128),-1)
+# draw auto-detected points (outlined)
+for (x, y) in st.session_state.aec_auto:
+    cv2.circle(marked_disp, (x, y), circle_radius, (0, 0, 255), 2)  # red outline = aec auto
+for (x, y) in st.session_state.hema_auto:
+    cv2.circle(marked_disp, (x, y), circle_radius, (255, 0, 0), 2)  # blue outline = hema auto
 
-# draw auto points
-for (x,y) in st.session_state.aec_auto: cv2.circle(marked_disp,(x,y),circle_radius,(0,0,255),2)
-for (x,y) in st.session_state.hema_auto: cv2.circle(marked_disp,(x,y),circle_radius,(255,0,0),2)
+# ⚡ coords holen
+coords = streamlit_image_coordinates(
+    Image.fromarray(marked_disp),
+    key=f"clickable_image_{st.session_state.last_auto_run}_{st.session_state.last_file}",
+    width=DISPLAY_WIDTH
+)
 
-coords=streamlit_image_coordinates(Image.fromarray(marked_disp),key=f"img_coords_{st.session_state.last_file}",width=DISPLAY_WIDTH)
-
-# -------------------- Klicklogik --------------------
-
+# -------------------- Klicklogik + Dedup + Auto-Kalibrierung --------------------
 if coords:
     x, y = int(coords["x"]), int(coords["y"])
 
-    # Flag prüfen: wurde dieser Klick schon verarbeitet?
-    last_coords = st.session_state.get("last_click_coords")
-    if last_coords == (x, y):
-        pass  # nichts tun, Doppelclick vermeiden
-    else:
-        st.session_state["last_click_coords"] = (x, y)
+    if delete_mode:
+        for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema", "aec_auto", "hema_auto"]:
+            st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
+        st.info("Punkt(e) gelöscht (falls gefunden).")
 
-        if delete_mode:
-            for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
-                st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
-            st.info("Punkt(e) gelöscht (falls gefunden).")
+    elif aec_mode:
+        st.session_state.aec_cal_points.append((x, y))
+        st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-        elif aec_mode:
-            st.session_state.aec_cal_points.append((x, y))
-            st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
+    elif hema_mode:
+        st.session_state.hema_cal_points.append((x, y))
+        st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-        elif hema_mode:
-            st.session_state.hema_cal_points.append((x, y))
-            st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
+    elif bg_mode:
+        st.session_state.bg_cal_points.append((x, y))
+        st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-        elif bg_mode:
-            st.session_state.bg_cal_points.append((x, y))
-            st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
+    elif manual_aec_mode:
+        st.session_state.manual_aec.append((x, y))
+        st.info(f"✋ Manuell: AEC-Punkt ({x}, {y})")
 
-        elif manual_aec_mode:
-            st.session_state.manual_aec.append((x, y))
-            st.info(f"✋ Manuell: AEC-Punkt ({x}, {y})")
+    elif manual_hema_mode:
+        st.session_state.manual_hema.append((x, y))
+        st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x}, {y})")
 
-        elif manual_hema_mode:
-            st.session_state.manual_hema.append((x, y))
-            st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x}, {y})")
+    # ⚡ coords zurücksetzen, damit alte Punkte nicht in nächste Kalibrierung springen
+    coords = None
+
+# Deduplication bleibt unverändert
+for k in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
+    st.session_state[k] = dedup_points(st.session_state[k], min_dist=max(4, circle_radius // 2))
 
 # -------------------- Auto-Kalibrierung aus Kalibrier-Punkten --------------------
 def auto_calibrate_from_calpoints(category_name, cal_key, hsv_key, hsv_img, radius):
