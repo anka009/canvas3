@@ -320,3 +320,17 @@ if rows:
     df["X_original"] = (df["X_display"]/scale).round().astype("Int64")
     df["Y_original"] = (df["Y_display"]/scale).round().astype("Int64")
     st.download_button("📥 CSV exportieren", data=df.to_csv(index=False).encode("utf-8"), file_name="zellkerne_final.csv", mime="text/csv")
+
+# -------------------- Debug Info (robust) --------------------
+with st.expander("🧠 Debug Info"):
+    # Liste aller Keys, die wir gezielt debuggen wollen
+    debug_keys = [
+        "aec_hsv", "hema_hsv", "bg_hsv",
+        "aec_auto", "hema_auto", "manual_aec", "manual_hema",
+        "aec_cal_points", "hema_cal_points", "bg_cal_points",
+        "last_auto_run", "disp_width", "last_file"
+    ]
+    
+    # Ausgabe: nur die Keys, die tatsächlich existieren
+    debug_data = {k: st.session_state.get(k, None) for k in debug_keys}
+    st.write(debug_data)
