@@ -179,9 +179,6 @@ if st.sidebar.button("🧹 Alles löschen"):
         st.session_state[k]=None
     st.success("✅ Alles gelöscht.")
 
-if st.sidebar.button("💾 Kalibrierung speichern"): save_last_calibration()
-if st.sidebar.button("📂 Kalibrierung laden"): load_last_calibration()
-
 # -------------------- Interaktive Bildanzeige --------------------
 marked_disp=image_disp.copy()
 
