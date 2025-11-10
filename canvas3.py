@@ -220,25 +220,35 @@ if coords:
 for k in ["aec_cal_points","hema_cal_points","bg_cal_points","manual_aec","manual_hema"]:
     st.session_state[k] = dedup_points(st.session_state[k],min_dist=max(4,circle_radius//2))
 
-# -------------------- Auto-Kalibrierung --------------------
-def auto_calibrate(cal_key,hsv_key,name):
-    pts = st.session_state.get(cal_key,[])
+# -------------------- Auto-Kalibrierung aus Kalibrier-Punkten --------------------
+def auto_calibrate_from_calpoints(category_name, cal_key, hsv_key, hsv_img, radius):
+    pts = st.session_state.get(cal_key, [])
     if len(pts) >= min_points_calib:
-        hsv = compute_hsv_range(pts,hsv_disp,radius=calib_radius)
+        hsv = compute_hsv_range(pts, hsv_img, radius=radius)
         if hsv is not None:
             st.session_state[hsv_key] = hsv
-            st.success(f"✅ {name}: Auto-Kalibrierung ({len(pts)} Punkte)")
-            st.session_state[cal_key]=[]
+            st.success(f"✅ {category_name}: Kalibrierung automatisch ({len(pts)} Punkte)")
+            # Reset cal points (sie wurden gerade benutzt)
+            st.session_state[cal_key] = []
+            # WICHTIG: coords-Cache löschen, damit kein letzter Punkt in nächste Kalibrierung rutscht
+            if "last_click_coords" in st.session_state:
+                st.session_state["last_click_coords"] = None
             st.session_state.last_auto_run += 1
 
-auto_calibrate("aec_cal_points","aec_hsv","AEC")
-auto_calibrate("hema_cal_points","hema_hsv","Hämatoxylin")
+# -------------------- Hintergrund-Kalibrierung --------------------
 if len(st.session_state.bg_cal_points) >= min_points_calib:
-    hsv_bg=compute_hsv_range(st.session_state.bg_cal_points,hsv_disp,radius=calib_radius)
+    hsv_bg = compute_hsv_range(st.session_state.bg_cal_points, hsv_disp, radius=calib_radius)
     if hsv_bg is not None:
         st.session_state.bg_hsv = hsv_bg
-        st.session_state.bg_cal_points=[]
+        st.success(f"✅ Hintergrund-Kalibrierung automatisch ({len(st.session_state.bg_cal_points)} Punkte)")
+        st.session_state.bg_cal_points = []
+        if "last_click_coords" in st.session_state:
+            st.session_state["last_click_coords"] = None
         st.session_state.last_auto_run += 1
+
+# -------------------- Aufruf der Auto-Kalibrierung für AEC/Hämatoxylin --------------------
+auto_calibrate_from_calpoints("AEC", "aec_cal_points", "aec_hsv", hsv_disp, calib_radius)
+auto_calibrate_from_calpoints("Hämatoxylin", "hema_cal_points", "hema_hsv", hsv_disp, calib_radius)
 
 # -------------------- Auto-Erkennung --------------------
 if st.session_state.last_auto_run>0:
