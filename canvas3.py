@@ -89,30 +89,38 @@ with col1:
 # ==========================================================
 # Klickverarbeitung
 # ==========================================================
-coords = st.session_state.get("last_coords", None)
-if "click" not in st.session_state:
-    st.session_state.click = None
+from streamlit_drawable_canvas import st_canvas
 
-clicked = st.image(disp_img, channels="BGR", use_container_width=True)
+st.markdown("### 🖱️ Klick ins Bild, um Punkte zu setzen oder zu löschen")
 
-if coords:
-    x = int(round(coords["x"]))
-    y = int(round(coords["y"]))
+canvas_result = st_canvas(
+    fill_color="rgba(255, 0, 0, 0.3)",
+    stroke_width=0,
+    background_image=cv2.cvtColor(disp_img, cv2.COLOR_BGR2RGB),
+    update_streamlit=True,
+    height=disp_img.shape[0],
+    width=disp_img.shape[1],
+    drawing_mode="point",
+    key="canvas_click"
+)
 
-    if 0 <= x < img.shape[1] and 0 <= y < img.shape[0]:
-        if mode == "AEC kalibrieren":
-            st.session_state.aec_points.append((x, y))
-        elif mode == "Hämatoxylin kalibrieren":
-            st.session_state.hema_points.append((x, y))
-        elif mode == "Hintergrund kalibrieren":
-            st.session_state.bg_points.append((x, y))
-        elif mode == "Manuell AEC hinzufügen":
-            st.session_state.manual_aec.append((x, y))
-        elif mode == "Manuell Hämatoxylin hinzufügen":
-            st.session_state.manual_hema.append((x, y))
-        elif mode == "Punkte löschen":
-            for k in ["aec_points", "hema_points", "bg_points", "manual_aec", "manual_hema"]:
-                st.session_state[k] = [p for p in st.session_state[k] if not is_near(p, (x, y), point_size + 2)]
+if canvas_result.json_data is not None:
+    for obj in canvas_result.json_data["objects"]:
+        x, y = int(obj["left"]), int(obj["top"])
+        if 0 <= x < img.shape[1] and 0 <= y < img.shape[0]:
+            if mode == "AEC kalibrieren":
+                st.session_state.aec_points.append((x, y))
+            elif mode == "Hämatoxylin kalibrieren":
+                st.session_state.hema_points.append((x, y))
+            elif mode == "Hintergrund kalibrieren":
+                st.session_state.bg_points.append((x, y))
+            elif mode == "Manuell AEC hinzufügen":
+                st.session_state.manual_aec.append((x, y))
+            elif mode == "Manuell Hämatoxylin hinzufügen":
+                st.session_state.manual_hema.append((x, y))
+            elif mode == "Punkte löschen":
+                for k in ["aec_points", "hema_points", "bg_points", "manual_aec", "manual_hema"]:
+                    st.session_state[k] = [p for p in st.session_state[k] if not is_near(p, (x, y), point_size + 2)]
 
 # ==========================================================
 # Automatische Erkennung nach Kalibrierung
