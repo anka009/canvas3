@@ -235,6 +235,28 @@ if coords:
 # Deduplication
 for k in ["aec_cal_points","hema_cal_points","bg_cal_points","manual_aec","manual_hema","aec_auto","hema_auto"]:
     st.session_state[k] = dedup_points(st.session_state[k], min_dist=max(4,circle_radius//2))
+# Koordinaten löschen
+if coords:
+    x, y = int(coords["x"]), int(coords["y"])
+    if delete_mode:
+        # ... löschen ...
+    elif aec_mode:
+        # ... hinzufügen ...
+    elif hema_mode:
+        # ... hinzufügen ...
+    elif bg_mode:
+        # ... hinzufügen ...
+    elif manual_aec_mode:
+        # ... hinzufügen ...
+    elif manual_hema_mode:
+        # ... hinzufügen ...
+
+    # Punkte deduplizieren
+    for k in [...]:
+        st.session_state[k] = dedup_points(...)
+
+    # 🧹 Koordinaten zurücksetzen
+    coords = None
 
 # -------------------- Auto-Kalibrierung --------------------
 def auto_calibrate_from_calpoints(name, cal_key, hsv_key):
