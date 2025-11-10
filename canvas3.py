@@ -411,7 +411,7 @@ if isinstance(result_img, np.ndarray):
     if result_img.dtype != np.uint8:
         result_img = np.clip(result_img, 0, 255).astype(np.uint8)
     try:
-        st.image(result_img, caption=f"Erkannte Zellen (AEC={n_aec}, Häma={n_hema})", use_container_width=True)
+        st.image(result_img, caption=f"Erkannte Zellen (AEC={n_aec}, Häma={n_hema})", use_column_width=True)
     except Exception as e:
         st.error(f"❌ Fehler bei der Bildanzeige: {e}")
 else:
