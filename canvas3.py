@@ -381,33 +381,75 @@ if st.session_state.last_auto_run > 0:
 # ==========================================================
 # Ergebnisse & Export
 # ==========================================================
+
 all_aec = st.session_state.aec_points or []
 all_hema = st.session_state.hema_points or []
 
 n_aec = len(all_aec)
 n_hema = len(all_hema)
 
-st.markdown("### 📊 Ergebnisse")
+st.markdown("### 📊 Ergebnisse – Zellkern-Zählung")
 colA, colB = st.columns(2)
 with colA:
     st.metric("AEC-positive Zellen", n_aec)
 with colB:
     st.metric("Hämatoxylin-positive Zellen", n_hema)
 
-# Vorschau-Markierung im Bild
+# -------------------------------------------------------------
+# Vorschau: Bild mit Markierungen (robust)
+# -------------------------------------------------------------
 result_img = image_disp.copy()
+
+# Markiere alle AEC (rot) und Hämatoxylin (blau)
 for (x, y) in all_aec:
     cv2.circle(result_img, (x, y), circle_radius, (255, 0, 0), 2)
 for (x, y) in all_hema:
     cv2.circle(result_img, (x, y), circle_radius, (0, 0, 255), 2)
 
-st.image(result_img, caption=f"Erkannte Zellen (AEC={n_aec}, Häma={n_hema})", use_container_width=True)
+# Sicherstellen, dass das Bild korrekt darstellbar ist
+if isinstance(result_img, np.ndarray):
+    if result_img.dtype != np.uint8:
+        result_img = np.clip(result_img, 0, 255).astype(np.uint8)
+    try:
+        st.image(result_img, caption=f"Erkannte Zellen (AEC={n_aec}, Häma={n_hema})", use_container_width=True)
+    except Exception as e:
+        st.error(f"❌ Fehler bei der Bildanzeige: {e}")
+else:
+    st.warning("⚠️ Kein gültiges Bild zur Anzeige verfügbar.")
 
-# Exportoptionen
-csv_data = pd.DataFrame({
-    "Typ": ["AEC"] * n_aec + ["Hämatoxylin"] * n_hema,
-    "x": [p[0] for p in all_aec + all_hema],
-    "y": [p[1] for p in all_aec + all_hema],
-})
-csv_bytes = csv_data.to_csv(index=False).encode("utf-8")
-st.download_button("📥 Ergebnisse als CSV herunterladen", csv_bytes, "zell_ergebnisse.csv", "text/csv")
+# -------------------------------------------------------------
+# CSV-Export
+# -------------------------------------------------------------
+if n_aec + n_hema > 0:
+    df_export = pd.DataFrame({
+        "Typ": ["AEC"] * n_aec + ["Hämatoxylin"] * n_hema,
+        "X_display": [p[0] for p in all_aec + all_hema],
+        "Y_display": [p[1] for p in all_aec + all_hema],
+    })
+    df_export["X_original"] = (df_export["X_display"] / scale).round().astype("Int64")
+    df_export["Y_original"] = (df_export["Y_display"] / scale).round().astype("Int64")
+
+    csv_data = df_export.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "📥 Ergebnisse als CSV herunterladen",
+        csv_data,
+        "zellkerne_auswertung.csv",
+        "text/csv"
+    )
+
+# -------------------------------------------------------------
+# Debug-Informationen
+# -------------------------------------------------------------
+with st.expander("🧠 Debug Info"):
+    st.write({
+        "aec_hsv": st.session_state.aec_hsv,
+        "hema_hsv": st.session_state.hema_hsv,
+        "bg_hsv": st.session_state.bg_hsv,
+        "aec_points_count": n_aec,
+        "hema_points_count": n_hema,
+        "manual_aec_count": len(st.session_state.manual_aec or []),
+        "manual_hema_count": len(st.session_state.manual_hema or []),
+        "bg_points_count": len(st.session_state.bg_points or []),
+        "last_auto_run": st.session_state.last_auto_run,
+        "image_shape": image_disp.shape if isinstance(image_disp, np.ndarray) else None,
+    })
