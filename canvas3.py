@@ -394,10 +394,10 @@ st.markdown("### 📊 Ergebnisse")
 colA, colB = st.columns(2)
 with colA:
     st.metric("AEC (auto)", len(aec_auto))
-    st.metric("AEC (manuell)", len(aec_manual))
+    st.metric("AEC (manuell)", max(0, len(aec_manual) - 1))
 with colB:
     st.metric("Hämatoxylin (auto)", len(hema_auto))
-    st.metric("Hämatoxylin (manuell)", len(hema_manual))
+    st.metric("Hämatoxylin (manuell)", max(0, len(hema_manual) -1 ))
 
 # Prepare and show result image (distinct styles)
 result_img = image_disp.copy()
