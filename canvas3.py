@@ -20,19 +20,20 @@ def dedup_points(points, min_dist=6):
     return out
 
 def get_centers(mask, min_area=50):
-    """Kompatible findContours-Unpack und Zentroidberechnung."""
-    m = mask.copy()
-    res = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if isinstance(res, tuple) and len(res) == 2:
-        contours = res[0]
-    elif isinstance(res, tuple) and len(res) == 3:
-        contours = res[1]
-    else:
-        # defensive fallback
-        contours = res[1] if len(res) > 1 else []
+    """Erweiterte Konturenerkennung mit Glättung und Morphologie."""
+    # Morphologische Filterung
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    # Konturen finden
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     centers = []
+
     for c in contours:
-        if cv2.contourArea(c) >= min_area:
+        c = cv2.approxPolyDP(c, 0.01 * cv2.arcLength(c, True), True)
+        area = cv2.contourArea(c)
+        if area >= min_area:
             M = cv2.moments(c)
             if M.get("m00", 0):
                 cx = int(round(M["m10"] / M["m00"]))
