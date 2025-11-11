@@ -204,6 +204,46 @@ min_points_calib = st.sidebar.slider(
 )
 st.sidebar.info("Kalibrierung läuft automatisch, sobald die minimale Punktzahl erreicht ist.")
 
+# Modes
+st.sidebar.markdown("### 🎨 Modus auswählen")
+mode = st.sidebar.radio(
+    "Modus",
+    [
+        "AEC Kalibrier-Punkt setzen",
+        "Hämatoxylin Kalibrier-Punkt setzen",
+        "Hintergrund Kalibrier-Punkt setzen",
+        "AEC manuell hinzufügen",
+        "Hämatoxylin manuell hinzufügen",
+        "Punkt löschen"
+    ],
+    index=0
+)
+
+aec_mode = mode == "AEC Kalibrier-Punkt setzen"
+hema_mode = mode == "Hämatoxylin Kalibrier-Punkt setzen"
+bg_mode = mode == "Hintergrund Kalibrier-Punkt setzen"
+manual_aec_mode = mode == "AEC manuell hinzufügen"
+manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
+delete_mode = mode == "Punkt löschen"
+# Wenn der Modus gewechselt wird, jeweiligen Ignore-Flag wieder aktivieren
+if "prev_mode" not in st.session_state:
+    st.session_state.prev_mode = None
+
+if mode != st.session_state.prev_mode:
+    if "AEC" in mode:
+        st.session_state.aec_first_ignore = True
+    if "Hämatoxylin" in mode:
+        st.session_state.hema_first_ignore = True
+    if "Hintergrund" in mode:
+        st.session_state.bg_first_ignore = True
+    st.session_state.prev_mode = mode
+
+# Quick actions
+if st.sidebar.button("🧹 Alle Punkte löschen"):
+    for k in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "aec_auto", "hema_auto", "manual_aec", "manual_hema"]:
+        st.session_state[k] = []
+    st.success("Alle Punkte gelöscht.")
+
 # -------------------- Bildanzeige mit Markierungen --------------------
 marked_disp = image_disp.copy()
 # draw calibration input points (small filled)
@@ -228,35 +268,53 @@ for (x, y) in st.session_state.hema_auto:
 
 coords = streamlit_image_coordinates(Image.fromarray(marked_disp), key=f"clickable_image_{st.session_state.last_auto_run}_{st.session_state.last_file}", width=DISPLAY_WIDTH)
 
-# --- Klick-Logik ---
+# -------------------- Klicklogik + Dedup + Auto-Kalibrierung --------------------
 if coords:
-    if st.session_state.mode == "AEC Kalibrier-Punkt setzen":
-        st.session_state.aec_cal_points.append(coords)
+    x, y = int(coords["x"]), int(coords["y"])
 
-    elif st.session_state.mode == "Hämatoxylin Kalibrier-Punkt setzen":
-        st.session_state.hema_cal_points.append(coords)
+    # 👉 Ersten Klick global ignorieren
+    if "first_click_ignored" not in st.session_state:
+        st.session_state.first_click_ignored = False
+    if not st.session_state.first_click_ignored:
+        st.session_state.first_click_ignored = True
+        st.info("⏳ Erster Klick wurde ignoriert (Initialisierung).")
+    else:
+        if delete_mode:
+            for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
+                st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
+            st.info("Punkt(e) gelöscht (falls gefunden).")
 
-    elif st.session_state.mode == "Hintergrund Kalibrier-Punkt setzen":
-        st.session_state.bg_cal_points.append(coords)
+        elif aec_mode:
+            if st.session_state.aec_first_ignore:
+                st.session_state.aec_first_ignore = False
+                st.info("⏳ Erster AEC-Klick ignoriert (Initialisierung).")
+            else:
+                st.session_state.aec_cal_points.append((x, y))
+                st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-    elif st.session_state.mode == "AEC manuell hinzufügen":
-        st.session_state.manual_aec.append(coords)
+        elif hema_mode:
+            if st.session_state.hema_first_ignore:
+                st.session_state.hema_first_ignore = False
+                st.info("⏳ Erster Hämatoxylin-Klick ignoriert (Initialisierung).")
+            else:
+                st.session_state.hema_cal_points.append((x, y))
+                st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-    elif st.session_state.mode == "Hämatoxylin manuell hinzufügen":
-        st.session_state.manual_hema.append(coords)
+        elif bg_mode:
+            if st.session_state.bg_first_ignore:
+                st.session_state.bg_first_ignore = False
+                st.info("⏳ Erster Hintergrund-Klick ignoriert (Initialisierung).")
+            else:
+                st.session_state.bg_cal_points.append((x, y))
+                st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
 
-    elif st.session_state.mode == "Punkt löschen":
-        # Beispiel: Löschlogik für alle Listen
-        for lst in [
-            st.session_state.aec_cal_points,
-            st.session_state.hema_cal_points,
-            st.session_state.bg_cal_points,
-            st.session_state.aec_auto,
-            st.session_state.hema_auto,
-            st.session_state.manual_aec,
-            st.session_state.manual_hema,
-        ]:
-            lst[:] = [p for p in lst if np.linalg.norm(np.array(p) - np.array(coords)) > circle_radius]
+        elif manual_aec_mode:
+            st.session_state.manual_aec.append((x, y))
+            st.info(f"✋ Manuell: AEC-Punkt ({x}, {y})")
+
+        elif manual_hema_mode:
+            st.session_state.manual_hema.append((x, y))
+            st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x}, {y})")
 
 # Deduplication
 for k in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
@@ -326,97 +384,74 @@ if st.session_state.last_auto_run > 0:
 
     st.session_state.last_auto_run = 0
 
-# --- Manueller Modus (Batch-Logik) ---
-if st.session_state.mode in ["AEC manuell hinzufügen", "Hämatoxylin manuell hinzufügen"]:
-    # Basisbild einmal speichern (mit Auto-Markierungen)
-    if "manual_base_image" not in st.session_state:
-        st.session_state.manual_base_image = image_with_auto_marks.copy()
+# -------------------- Anzeige der vier Ergebnis-Kategorien + CSV Export --------------------
+aec_auto = st.session_state.aec_auto or []
+aec_manual = st.session_state.manual_aec or []
+hema_auto = st.session_state.hema_auto or []
+hema_manual = st.session_state.manual_hema or []
 
-    # Marker sammeln (nur Koordinaten speichern, keine sofortige Berechnung)
-    if click_coords:
-        if st.session_state.mode == "AEC manuell hinzufügen":
-            st.session_state.manual_aec.append(click_coords)
-        elif st.session_state.mode == "Hämatoxylin manuell hinzufügen":
-            st.session_state.manual_hema.append(click_coords)
-
-    # Vorschau: Basisbild + Marker anzeigen
-    preview = st.session_state.manual_base_image.copy()
-    for (x, y) in st.session_state.manual_aec:
-        cv2.circle(preview, (x, y), 5, (255, 0, 0), -1)  # Blau für AEC
-    for (x, y) in st.session_state.manual_hema:
-        cv2.circle(preview, (x, y), 5, (0, 0, 255), -1)  # Rot für Hämatoxylin
-    st.image(preview, caption="Manuelle Marker Vorschau")
-
-    # Button zum Abschluss
-    if st.button("Fertig"):
-        st.session_state.manual_aec = dedup_points(
-            st.session_state.manual_aec,
-            min_dist=max(4, circle_radius // 2)
-        )
-        st.session_state.manual_hema = dedup_points(
-            st.session_state.manual_hema,
-            min_dist=max(4, circle_radius // 2)
-        )
-        st.session_state.manual_done = True
-        st.success("✅ Manuelle Punkte übernommen und berechnet!")
-
-# --- Ergebnis-Block ---
 st.markdown("### 📊 Ergebnisse")
 colA, colB = st.columns(2)
-
 with colA:
-    st.metric("AEC (auto)", len(st.session_state.aec_auto))
-    if "manual_done" in st.session_state and st.session_state.manual_done:
-        st.metric("AEC (manuell)", len(st.session_state.manual_aec))
-    else:
-        st.metric("AEC (manuell)", 0)
-
+    st.metric("AEC (auto)", len(aec_auto))
+    st.metric("AEC (manuell)", max(0, len(aec_manual) - 1))
 with colB:
-    st.metric("Hämatoxylin (auto)", len(st.session_state.hema_auto))
-    if "manual_done" in st.session_state and st.session_state.manual_done:
-        st.metric("Hämatoxylin (manuell)", len(st.session_state.manual_hema))
-    else:
-        st.metric("Hämatoxylin (manuell)", 0)
+    st.metric("Hämatoxylin (auto)", len(hema_auto))
+    st.metric("Hämatoxylin (manuell)", max(0, len(hema_manual) -1 ))
 
-# --- Debug-Block ---
+# Prepare and show result image (distinct styles)
+result_img = image_disp.copy()
+# auto outlines
+for (x, y) in aec_auto:
+    cv2.circle(result_img, (x, y), circle_radius, (0, 0, 255), 2)  # red
+for (x, y) in hema_auto:
+    cv2.circle(result_img, (x, y), circle_radius, (255, 0, 0), 2)  # blue
+# manual filled
+for (x, y) in aec_manual:
+    cv2.circle(result_img, (x, y), circle_radius, (0, 165, 255), -1)  # orange
+for (x, y) in hema_manual:
+    cv2.circle(result_img, (x, y), circle_radius, (128, 0, 128), -1)  # purple
+
+# ensure dtype right
+if isinstance(result_img, np.ndarray):
+    if result_img.dtype != np.uint8:
+        result_img = np.clip(result_img, 0, 255).astype(np.uint8)
+    try:
+        st.image(result_img, caption="Erkannte Punkte (auto = outline, manuell = filled)", use_column_width=True)
+    except TypeError:
+        # fallback if use_column_width isn't supported
+        st.image(result_img, caption="Erkannte Punkte (auto = outline, manuell = filled)")
+
+# CSV export (Type + Source)
+rows = []
+for x, y in aec_auto:
+    rows.append({"X_display": x, "Y_display": y, "Type": "AEC", "Source": "auto"})
+for x, y in aec_manual:
+    rows.append({"X_display": x, "Y_display": y, "Type": "AEC", "Source": "manual"})
+for x, y in hema_auto:
+    rows.append({"X_display": x, "Y_display": y, "Type": "Hämatoxylin", "Source": "auto"})
+for x, y in hema_manual:
+    rows.append({"X_display": x, "Y_display": y, "Type": "Hämatoxylin", "Source": "manual"})
+
+if rows:
+    df = pd.DataFrame(rows)
+    df["X_original"] = (df["X_display"] / scale).round().astype("Int64")
+    df["Y_original"] = (df["Y_display"] / scale).round().astype("Int64")
+    st.download_button("📥 CSV exportieren", data=df.to_csv(index=False).encode("utf-8"), file_name="zellkerne_v4.csv", mime="text/csv")
+
+# -------------------- Debug Info --------------------
 with st.expander("🧠 Debug Info"):
-    debug_info = {
+    st.write({
         "aec_hsv": st.session_state.aec_hsv,
         "hema_hsv": st.session_state.hema_hsv,
         "bg_hsv": st.session_state.bg_hsv,
         "aec_auto_count": len(st.session_state.aec_auto),
         "hema_auto_count": len(st.session_state.hema_auto),
+        "manual_aec_count":  len(st.session_state.manual_aec),
+        "manual_hema_count":  len(st.session_state.manual_hema),
         "aec_cal_points": st.session_state.aec_cal_points,
         "hema_cal_points": st.session_state.hema_cal_points,
         "bg_cal_points": st.session_state.bg_cal_points,
         "last_auto_run": st.session_state.last_auto_run,
         "image_shape": image_disp.shape if isinstance(image_disp, np.ndarray) else None
-    }
-
-    if "manual_done" in st.session_state and st.session_state.manual_done:
-        debug_info["manual_aec_count"] = len(st.session_state.manual_aec)
-        debug_info["manual_hema_count"] = len(st.session_state.manual_hema)
-    else:
-        debug_info["manual_aec_count"] = 0
-        debug_info["manual_hema_count"] = 0
-
-    st.write(debug_info)
-
-# --- CSV-Export ---
-if st.button("📥 Export CSV"):
-    export_data = {
-        "AEC_auto": len(st.session_state.aec_auto),
-        "Hema_auto": len(st.session_state.hema_auto),
-    }
-
-    if "manual_done" in st.session_state and st.session_state.manual_done:
-        export_data["AEC_manual"] = len(st.session_state.manual_aec)
-        export_data["Hema_manual"] = len(st.session_state.manual_hema)
-    else:
-        export_data["AEC_manual"] = 0
-        export_data["Hema_manual"] = 0
-
-    df_export = pd.DataFrame([export_data])
-    st.dataframe(df_export)
-    csv = df_export.to_csv(index=False).encode("utf-8")
-    st.download_button("Download CSV", csv, "results.csv", "text/csv")
+    })
