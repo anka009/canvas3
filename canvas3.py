@@ -273,6 +273,8 @@ if coords:
     x, y = int(coords["x"]), int(coords["y"])
 
     # 👉 Ersten Klick global ignorieren
+    if "first_click_ignored" not in st.session_state:
+        st.session_state.first_click_ignored = False
     if not st.session_state.first_click_ignored:
         st.session_state.first_click_ignored = True
         st.info("⏳ Erster Klick wurde ignoriert (Initialisierung).")
