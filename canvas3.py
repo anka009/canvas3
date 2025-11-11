@@ -238,8 +238,7 @@ if mode != st.session_state.prev_mode:
     st.session_state.prev_mode = mode
 
 # Quick actions
-st.sidebar.markdown("### ⚡ Schnellaktionen")
-if st.sidebar.button("🧹 Alle markierten & manuellen Punkte löschen"):
+if st.sidebar.button("🧹 Alle Punkte löschen"):
     for k in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "aec_auto", "hema_auto", "manual_aec", "manual_hema"]:
         st.session_state[k] = []
     st.success("Alle Punkte gelöscht.")
