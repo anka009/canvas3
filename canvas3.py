@@ -229,21 +229,21 @@ for (x, y) in st.session_state.hema_auto:
 coords = streamlit_image_coordinates(Image.fromarray(marked_disp), key=f"clickable_image_{st.session_state.last_auto_run}_{st.session_state.last_file}", width=DISPLAY_WIDTH)
 
 # --- Klick-Logik ---
-if click_coords:
+if coords:
     if st.session_state.mode == "AEC Kalibrier-Punkt setzen":
-        st.session_state.aec_cal_points.append(click_coords)
+        st.session_state.aec_cal_points.append(coords)
 
     elif st.session_state.mode == "Hämatoxylin Kalibrier-Punkt setzen":
-        st.session_state.hema_cal_points.append(click_coords)
+        st.session_state.hema_cal_points.append(coords)
 
     elif st.session_state.mode == "Hintergrund Kalibrier-Punkt setzen":
-        st.session_state.bg_cal_points.append(click_coords)
+        st.session_state.bg_cal_points.append(coords)
 
     elif st.session_state.mode == "AEC manuell hinzufügen":
-        st.session_state.manual_aec.append(click_coords)
+        st.session_state.manual_aec.append(coords)
 
     elif st.session_state.mode == "Hämatoxylin manuell hinzufügen":
-        st.session_state.manual_hema.append(click_coords)
+        st.session_state.manual_hema.append(coords)
 
     elif st.session_state.mode == "Punkt löschen":
         # Beispiel: Löschlogik für alle Listen
@@ -256,7 +256,7 @@ if click_coords:
             st.session_state.manual_aec,
             st.session_state.manual_hema,
         ]:
-            lst[:] = [p for p in lst if np.linalg.norm(np.array(p) - np.array(click_coords)) > circle_radius]
+            lst[:] = [p for p in lst if np.linalg.norm(np.array(p) - np.array(coords)) > circle_radius]
 
 # Deduplication
 for k in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
