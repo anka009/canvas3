@@ -447,7 +447,7 @@ with st.expander("🧠 Debug Info"):
         "bg_hsv": st.session_state.bg_hsv,
         "aec_auto_count": len(st.session_state.aec_auto),
         "hema_auto_count": len(st.session_state.hema_auto),
-        "manual_aec_count": len(st.session_state.manual_aec),
+        "manual_aec_count": {max(0, len(st.session_state.manual_aec) -1)},
         "manual_hema_count": len(st.session_state.manual_hema),
         "aec_cal_points": st.session_state.aec_cal_points,
         "hema_cal_points": st.session_state.hema_cal_points,
