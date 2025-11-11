@@ -228,53 +228,35 @@ for (x, y) in st.session_state.hema_auto:
 
 coords = streamlit_image_coordinates(Image.fromarray(marked_disp), key=f"clickable_image_{st.session_state.last_auto_run}_{st.session_state.last_file}", width=DISPLAY_WIDTH)
 
-# -------------------- Klicklogik + Dedup + Auto-Kalibrierung --------------------
-if coords:
-    x, y = int(coords["x"]), int(coords["y"])
+# --- Klick-Logik ---
+if click_coords:
+    if st.session_state.mode == "AEC Kalibrier-Punkt setzen":
+        st.session_state.aec_cal_points.append(click_coords)
 
-    # 👉 Ersten Klick global ignorieren
-    if "first_click_ignored" not in st.session_state:
-        st.session_state.first_click_ignored = False
-    if not st.session_state.first_click_ignored:
-        st.session_state.first_click_ignored = True
-        st.info("⏳ Erster Klick wurde ignoriert (Initialisierung).")
-    else:
-        if delete_mode:
-            for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
-                st.session_state[key] = [p for p in st.session_state[key] if not is_near(p, (x, y), circle_radius)]
-            st.info("Punkt(e) gelöscht (falls gefunden).")
+    elif st.session_state.mode == "Hämatoxylin Kalibrier-Punkt setzen":
+        st.session_state.hema_cal_points.append(click_coords)
 
-        elif aec_mode:
-            if st.session_state.aec_first_ignore:
-                st.session_state.aec_first_ignore = False
-                st.info("⏳ Erster AEC-Klick ignoriert (Initialisierung).")
-            else:
-                st.session_state.aec_cal_points.append((x, y))
-                st.info(f"📍 AEC-Kalibrierpunkt hinzugefügt ({x}, {y})")
+    elif st.session_state.mode == "Hintergrund Kalibrier-Punkt setzen":
+        st.session_state.bg_cal_points.append(click_coords)
 
-        elif hema_mode:
-            if st.session_state.hema_first_ignore:
-                st.session_state.hema_first_ignore = False
-                st.info("⏳ Erster Hämatoxylin-Klick ignoriert (Initialisierung).")
-            else:
-                st.session_state.hema_cal_points.append((x, y))
-                st.info(f"📍 Hämatoxylin-Kalibrierpunkt hinzugefügt ({x}, {y})")
+    elif st.session_state.mode == "AEC manuell hinzufügen":
+        st.session_state.manual_aec.append(click_coords)
 
-        elif bg_mode:
-            if st.session_state.bg_first_ignore:
-                st.session_state.bg_first_ignore = False
-                st.info("⏳ Erster Hintergrund-Klick ignoriert (Initialisierung).")
-            else:
-                st.session_state.bg_cal_points.append((x, y))
-                st.info(f"📍 Hintergrund-Kalibrierpunkt hinzugefügt ({x}, {y})")
+    elif st.session_state.mode == "Hämatoxylin manuell hinzufügen":
+        st.session_state.manual_hema.append(click_coords)
 
-        elif manual_aec_mode:
-            st.session_state.manual_aec.append((x, y))
-            st.info(f"✋ Manuell: AEC-Punkt ({x}, {y})")
-
-        elif manual_hema_mode:
-            st.session_state.manual_hema.append((x, y))
-            st.info(f"✋ Manuell: Hämatoxylin-Punkt ({x}, {y})")
+    elif st.session_state.mode == "Punkt löschen":
+        # Beispiel: Löschlogik für alle Listen
+        for lst in [
+            st.session_state.aec_cal_points,
+            st.session_state.hema_cal_points,
+            st.session_state.bg_cal_points,
+            st.session_state.aec_auto,
+            st.session_state.hema_auto,
+            st.session_state.manual_aec,
+            st.session_state.manual_hema,
+        ]:
+            lst[:] = [p for p in lst if np.linalg.norm(np.array(p) - np.array(click_coords)) > circle_radius]
 
 # Deduplication
 for k in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
