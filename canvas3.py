@@ -193,7 +193,7 @@ hsv_disp = cv2.cvtColor(image_disp, cv2.COLOR_RGB2HSV)
 # -------------------- Sidebar: Parameter --------------------
 st.sidebar.markdown("### ⚙️ Filter & Kalibrierung")
 blur_kernel = ensure_odd(st.sidebar.slider("🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1))
-min_area = st.sidebar.number_input("📏 Mindestfläche (px)", 10, 2000, 50)
+min_area = st.sidebar.number_input("📏 Mindestfläche (px)", 10, 2000, 100)
 alpha = st.sidebar.slider("🌗 Alpha (Kontrast)", 0.1, 3.0, 1.0, step=0.1)
 circle_radius = st.sidebar.slider("⚪ Kreisradius (Display-Px)", 1, 20, 5)
 calib_radius = st.sidebar.slider("🎯 Kalibrierungsradius (Pixel)", 1, 15, 5)
@@ -225,34 +225,6 @@ bg_mode = mode == "Hintergrund Kalibrier-Punkt setzen"
 manual_aec_mode = mode == "AEC manuell hinzufügen"
 manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
 delete_mode = mode == "Punkt löschen"
-# Wenn der Modus gewechselt wird, jeweiligen Ignore-Flag wieder aktivieren
-if "prev_mode" not in st.session_state:
-    st.session_state.prev_mode = None
-
-if mode != st.session_state.prev_mode:
-    if "AEC manuell" in mode:
-        # Alle AEC-Koordinaten löschen
-        st.session_state.manual_aec = []
-        st.session_state.aec_cal_points = []
-        st.session_state.aec_auto = []
-        st.info("Alle AEC-Koordinaten wurden beim Umschalten gelöscht.")
-    if "Hämatoxylin manuell" in mode:
-        # Alle Hämatoxylin-Koordinaten löschen
-        st.session_state.manual_hema = []
-        st.session_state.hema_cal_points = []
-        st.session_state.hema_auto = []
-        st.info("Alle Hämatoxylin-Koordinaten wurden beim Umschalten gelöscht.")
-
-    # Flags zurücksetzen wie bisher
-    if "AEC" in mode:
-        st.session_state.aec_first_ignore = True
-    if "Hämatoxylin" in mode:
-        st.session_state.hema_first_ignore = True
-    if "Hintergrund" in mode:
-        st.session_state.bg_first_ignore = True
-
-    st.session_state.prev_mode = mode
-
 # Wenn der Modus gewechselt wird, jeweiligen Ignore-Flag wieder aktivieren
 if "prev_mode" not in st.session_state:
     st.session_state.prev_mode = None
