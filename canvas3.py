@@ -243,7 +243,14 @@ if mode != st.session_state.prev_mode:
 
     # neuen Modus merken
     st.session_state.prev_mode = mode
+# -------------------- Klick-Handling für manuelle Modi --------------------
+if manual_aec_mode and st.session_state.last_click:
+    st.session_state.manual_aec.append(st.session_state.last_click)
+    st.success(f"AEC-Punkt hinzugefügt: {st.session_state.last_click}")
 
+if manual_hema_mode and st.session_state.last_click:
+    st.session_state.manual_hema.append(st.session_state.last_click)
+    st.success(f"Hämatoxylin-Punkt hinzugefügt: {st.session_state.last_click}")
 # Wenn der Modus gewechselt wird, jeweiligen Ignore-Flag wieder aktivieren
 if "prev_mode" not in st.session_state:
     st.session_state.prev_mode = None
