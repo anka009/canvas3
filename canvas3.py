@@ -241,12 +241,33 @@ if mode != st.session_state.prev_mode:
     st.session_state.prev_mode = mode
 
 # -------------------- Klick-Handling für manuelle Modi --------------------
+
+if aec_mode and st.session_state.last_click is not None:
+    if not st.session_state.ignore_first_click:
+        st.session_state.aec_cal_points.append(st.session_state.last_click)
+        st.success(f"AEC-Kalibrierpunkt hinzugefügt: {st.session_state.last_click}")
+    else:
+        st.session_state.ignore_first_click = False
+
+if hema_mode and st.session_state.last_click is not None:
+    if not st.session_state.ignore_first_click:
+        st.session_state.hema_cal_points.append(st.session_state.last_click)
+        st.success(f"Hämatoxylin-Kalibrierpunkt hinzugefügt: {st.session_state.last_click}")
+    else:
+        st.session_state.ignore_first_click = False
+
+if bg_mode and st.session_state.last_click is not None:
+    if not st.session_state.ignore_first_click:
+        st.session_state.bg_cal_points.append(st.session_state.last_click)
+        st.success(f"Hintergrund-Kalibrierpunkt hinzugefügt: {st.session_state.last_click}")
+    else:
+        st.session_state.ignore_first_click = False
+
 if manual_aec_mode and st.session_state.last_click is not None:
     if not st.session_state.ignore_first_click:
         st.session_state.manual_aec.append(st.session_state.last_click)
         st.success(f"AEC-Punkt hinzugefügt: {st.session_state.last_click}")
     else:
-        # Erstes Klicken nach Moduswechsel überspringen
         st.session_state.ignore_first_click = False
 
 if manual_hema_mode and st.session_state.last_click is not None:
@@ -254,7 +275,15 @@ if manual_hema_mode and st.session_state.last_click is not None:
         st.session_state.manual_hema.append(st.session_state.last_click)
         st.success(f"Hämatoxylin-Punkt hinzugefügt: {st.session_state.last_click}")
     else:
-        # Erstes Klicken nach Moduswechsel überspringen
+        st.session_state.ignore_first_click = False
+
+if delete_mode and st.session_state.last_click is not None:
+    if not st.session_state.ignore_first_click:
+        # Punkt löschen aus allen Listen
+        for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
+            st.session_state[key] = [p for p in st.session_state[key] if p != st.session_state.last_click]
+        st.success(f"Punkt gelöscht: {st.session_state.last_click}")
+    else:
         st.session_state.ignore_first_click = False
 
 # Quick actions
