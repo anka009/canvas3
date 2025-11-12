@@ -230,6 +230,34 @@ if "prev_mode" not in st.session_state:
     st.session_state.prev_mode = None
 
 if mode != st.session_state.prev_mode:
+    if "AEC manuell" in mode:
+        # Alle AEC-Koordinaten löschen
+        st.session_state.manual_aec = []
+        st.session_state.aec_cal_points = []
+        st.session_state.aec_auto = []
+        st.info("Alle AEC-Koordinaten wurden beim Umschalten gelöscht.")
+    if "Hämatoxylin manuell" in mode:
+        # Alle Hämatoxylin-Koordinaten löschen
+        st.session_state.manual_hema = []
+        st.session_state.hema_cal_points = []
+        st.session_state.hema_auto = []
+        st.info("Alle Hämatoxylin-Koordinaten wurden beim Umschalten gelöscht.")
+
+    # Flags zurücksetzen wie bisher
+    if "AEC" in mode:
+        st.session_state.aec_first_ignore = True
+    if "Hämatoxylin" in mode:
+        st.session_state.hema_first_ignore = True
+    if "Hintergrund" in mode:
+        st.session_state.bg_first_ignore = True
+
+    st.session_state.prev_mode = mode
+
+# Wenn der Modus gewechselt wird, jeweiligen Ignore-Flag wieder aktivieren
+if "prev_mode" not in st.session_state:
+    st.session_state.prev_mode = None
+
+if mode != st.session_state.prev_mode:
     if "AEC" in mode:
         st.session_state.aec_first_ignore = True
     if "Hämatoxylin" in mode:
