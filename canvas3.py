@@ -229,30 +229,33 @@ delete_mode = mode == "Punkt löschen"
 # -------------------- Moduswechsel-Logik --------------------
 if "prev_mode" not in st.session_state:
     st.session_state.prev_mode = mode
+if "ignore_first_click" not in st.session_state:
+    st.session_state.ignore_first_click = False
 
 if mode != st.session_state.prev_mode:
-    # Letzten Klick zurücksetzen, damit er nicht übernommen wird
+    # Letzten Klick zurücksetzen
     st.session_state.last_click = None
-
-    # Flags zurücksetzen
-    if "AEC" in mode:
-        st.session_state.aec_first_ignore = True
-    if "Hämatoxylin" in mode:
-        st.session_state.hema_first_ignore = True
-    if "Hintergrund" in mode:
-        st.session_state.bg_first_ignore = True
-
+    # Erstes Klicken im neuen Modus ignorieren
+    st.session_state.ignore_first_click = True
     # neuen Modus merken
     st.session_state.prev_mode = mode
 
 # -------------------- Klick-Handling für manuelle Modi --------------------
 if manual_aec_mode and st.session_state.last_click is not None:
-    st.session_state.manual_aec.append(st.session_state.last_click)
-    st.success(f"AEC-Punkt hinzugefügt: {st.session_state.last_click}")
+    if not st.session_state.ignore_first_click:
+        st.session_state.manual_aec.append(st.session_state.last_click)
+        st.success(f"AEC-Punkt hinzugefügt: {st.session_state.last_click}")
+    else:
+        # Erstes Klicken nach Moduswechsel überspringen
+        st.session_state.ignore_first_click = False
 
 if manual_hema_mode and st.session_state.last_click is not None:
-    st.session_state.manual_hema.append(st.session_state.last_click)
-    st.success(f"Hämatoxylin-Punkt hinzugefügt: {st.session_state.last_click}")
+    if not st.session_state.ignore_first_click:
+        st.session_state.manual_hema.append(st.session_state.last_click)
+        st.success(f"Hämatoxylin-Punkt hinzugefügt: {st.session_state.last_click}")
+    else:
+        # Erstes Klicken nach Moduswechsel überspringen
+        st.session_state.ignore_first_click = False
 
 # Quick actions
 if st.sidebar.button("🧹 Alle Punkte löschen"):
