@@ -7,6 +7,18 @@ from streamlit_image_coordinates import streamlit_image_coordinates
 import pandas as pd
 import json
 from pathlib import Path
+# -------------------- Session State Initialisierung --------------------
+if "last_click" not in st.session_state:
+    st.session_state.last_click = None
+if "prev_mode" not in st.session_state:
+    st.session_state.prev_mode = None
+if "ignore_first_click" not in st.session_state:
+    st.session_state.ignore_first_click = False
+
+# Falls du Listen für Punkte brauchst, auch direkt anlegen:
+for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
+    if key not in st.session_state:
+        st.session_state[key] = []
 
 # -------------------- Hilfsfunktionen --------------------
 def is_near(p1, p2, r=10):
