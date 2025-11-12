@@ -252,19 +252,6 @@ if manual_hema_mode and st.session_state.last_click:
     st.session_state.manual_hema.append(st.session_state.last_click)
     st.success(f"Hämatoxylin-Punkt hinzugefügt: {st.session_state.last_click}")
 
-# Wenn der Modus gewechselt wird, jeweiligen Ignore-Flag wieder aktivieren
-if "prev_mode" not in st.session_state:
-    st.session_state.prev_mode = None
-
-if mode != st.session_state.prev_mode:
-    if "AEC" in mode:
-        st.session_state.aec_first_ignore = True
-    if "Hämatoxylin" in mode:
-        st.session_state.hema_first_ignore = True
-    if "Hintergrund" in mode:
-        st.session_state.bg_first_ignore = True
-    st.session_state.prev_mode = mode
-
 # Quick actions
 if st.sidebar.button("🧹 Alle Punkte löschen"):
     for k in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "aec_auto", "hema_auto", "manual_aec", "manual_hema"]:
