@@ -230,21 +230,12 @@ delete_mode = mode == "Punkt löschen"
 if "prev_mode" not in st.session_state:
     st.session_state.prev_mode = mode
 
+# Wenn Modus gewechselt wurde → Klick zurücksetzen und abbrechen
 if mode != st.session_state.prev_mode:
-    # Letzten Klick zurücksetzen, damit er nicht übernommen wird
     st.session_state.last_click = None
-
-    # Flags zurücksetzen
-    if "AEC" in mode:
-        st.session_state.aec_first_ignore = True
-    if "Hämatoxylin" in mode:
-        st.session_state.hema_first_ignore = True
-    if "Hintergrund" in mode:
-        st.session_state.bg_first_ignore = True
-
-    # neuen Modus merken
     st.session_state.prev_mode = mode
-
+    # WICHTIG: hier sofort return, damit kein Klick-Handling mehr läuft
+    st.stop()
 # -------------------- Klick-Handling für manuelle Modi --------------------
 if manual_aec_mode and st.session_state.last_click is not None:
     st.session_state.manual_aec.append(st.session_state.last_click)
