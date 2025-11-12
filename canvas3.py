@@ -7,18 +7,6 @@ from streamlit_image_coordinates import streamlit_image_coordinates
 import pandas as pd
 import json
 from pathlib import Path
-# -------------------- Session State Initialisierung --------------------
-if "last_click" not in st.session_state:
-    st.session_state.last_click = None
-if "prev_mode" not in st.session_state:
-    st.session_state.prev_mode = None
-if "ignore_first_click" not in st.session_state:
-    st.session_state.ignore_first_click = False
-
-# Falls du Listen für Punkte brauchst, auch direkt anlegen:
-for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
-    if key not in st.session_state:
-        st.session_state[key] = []
 
 # -------------------- Hilfsfunktionen --------------------
 def is_near(p1, p2, r=10):
@@ -216,7 +204,7 @@ min_points_calib = st.sidebar.slider(
 )
 st.sidebar.info("Kalibrierung läuft automatisch, sobald die minimale Punktzahl erreicht ist.")
 
-# -------------------- Sidebar: Modus --------------------
+# Modes
 st.sidebar.markdown("### 🎨 Modus auswählen")
 mode = st.sidebar.radio(
     "Modus",
@@ -237,66 +225,18 @@ bg_mode = mode == "Hintergrund Kalibrier-Punkt setzen"
 manual_aec_mode = mode == "AEC manuell hinzufügen"
 manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
 delete_mode = mode == "Punkt löschen"
-
-# -------------------- Moduswechsel-Logik --------------------
+# Wenn der Modus gewechselt wird, jeweiligen Ignore-Flag wieder aktivieren
 if "prev_mode" not in st.session_state:
-    st.session_state.prev_mode = mode
-if "ignore_first_click" not in st.session_state:
-    st.session_state.ignore_first_click = False
+    st.session_state.prev_mode = None
 
 if mode != st.session_state.prev_mode:
-    # Letzten Klick zurücksetzen
-    st.session_state.last_click = None
-    # Erstes Klicken im neuen Modus ignorieren
-    st.session_state.ignore_first_click = True
-    # neuen Modus merken
+    if "AEC" in mode:
+        st.session_state.aec_first_ignore = True
+    if "Hämatoxylin" in mode:
+        st.session_state.hema_first_ignore = True
+    if "Hintergrund" in mode:
+        st.session_state.bg_first_ignore = True
     st.session_state.prev_mode = mode
-
-# -------------------- Klick-Handling für manuelle Modi --------------------
-
-if aec_mode and st.session_state.last_click is not None:
-    if not st.session_state.ignore_first_click:
-        st.session_state.aec_cal_points.append(st.session_state.last_click)
-        st.success(f"AEC-Kalibrierpunkt hinzugefügt: {st.session_state.last_click}")
-    else:
-        st.session_state.ignore_first_click = False
-
-if hema_mode and st.session_state.last_click is not None:
-    if not st.session_state.ignore_first_click:
-        st.session_state.hema_cal_points.append(st.session_state.last_click)
-        st.success(f"Hämatoxylin-Kalibrierpunkt hinzugefügt: {st.session_state.last_click}")
-    else:
-        st.session_state.ignore_first_click = False
-
-if bg_mode and st.session_state.last_click is not None:
-    if not st.session_state.ignore_first_click:
-        st.session_state.bg_cal_points.append(st.session_state.last_click)
-        st.success(f"Hintergrund-Kalibrierpunkt hinzugefügt: {st.session_state.last_click}")
-    else:
-        st.session_state.ignore_first_click = False
-
-if manual_aec_mode and st.session_state.last_click is not None:
-    if not st.session_state.ignore_first_click:
-        st.session_state.manual_aec.append(st.session_state.last_click)
-        st.success(f"AEC-Punkt hinzugefügt: {st.session_state.last_click}")
-    else:
-        st.session_state.ignore_first_click = False
-
-if manual_hema_mode and st.session_state.last_click is not None:
-    if not st.session_state.ignore_first_click:
-        st.session_state.manual_hema.append(st.session_state.last_click)
-        st.success(f"Hämatoxylin-Punkt hinzugefügt: {st.session_state.last_click}")
-    else:
-        st.session_state.ignore_first_click = False
-
-if delete_mode and st.session_state.last_click is not None:
-    if not st.session_state.ignore_first_click:
-        # Punkt löschen aus allen Listen
-        for key in ["aec_cal_points", "hema_cal_points", "bg_cal_points", "manual_aec", "manual_hema"]:
-            st.session_state[key] = [p for p in st.session_state[key] if p != st.session_state.last_click]
-        st.success(f"Punkt gelöscht: {st.session_state.last_click}")
-    else:
-        st.session_state.ignore_first_click = False
 
 # Quick actions
 if st.sidebar.button("🧹 Alle Punkte löschen"):
