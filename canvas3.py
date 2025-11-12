@@ -193,7 +193,7 @@ hsv_disp = cv2.cvtColor(image_disp, cv2.COLOR_RGB2HSV)
 # -------------------- Sidebar: Parameter --------------------
 st.sidebar.markdown("### ⚙️ Filter & Kalibrierung")
 blur_kernel = ensure_odd(st.sidebar.slider("🔧 Blur (ungerade empfohlen)", 1, 21, 5, step=1))
-min_area = st.sidebar.number_input("📏 Mindestfläche (px)", 10, 2000, 100)
+min_area = st.sidebar.number_input("📏 Mindestfläche (px)", 10, 2000, 50)
 alpha = st.sidebar.slider("🌗 Alpha (Kontrast)", 0.1, 3.0, 1.0, step=0.1)
 circle_radius = st.sidebar.slider("⚪ Kreisradius (Display-Px)", 1, 20, 5)
 calib_radius = st.sidebar.slider("🎯 Kalibrierungsradius (Pixel)", 1, 15, 5)
