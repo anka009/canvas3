@@ -204,7 +204,7 @@ min_points_calib = st.sidebar.slider(
 )
 st.sidebar.info("Kalibrierung läuft automatisch, sobald die minimale Punktzahl erreicht ist.")
 
-# Modes
+# -------------------- Sidebar: Modus --------------------
 st.sidebar.markdown("### 🎨 Modus auswählen")
 mode = st.sidebar.radio(
     "Modus",
@@ -225,12 +225,13 @@ bg_mode = mode == "Hintergrund Kalibrier-Punkt setzen"
 manual_aec_mode = mode == "AEC manuell hinzufügen"
 manual_hema_mode = mode == "Hämatoxylin manuell hinzufügen"
 delete_mode = mode == "Punkt löschen"
+
 # -------------------- Moduswechsel-Logik --------------------
 if "prev_mode" not in st.session_state:
     st.session_state.prev_mode = mode
 
 if mode != st.session_state.prev_mode:
-    # Letzten Klick zurücksetzen, damit er nicht in neuen Modus übernommen wird
+    # Letzten Klick zurücksetzen, damit er nicht übernommen wird
     st.session_state.last_click = None
 
     # Flags zurücksetzen
@@ -243,12 +244,13 @@ if mode != st.session_state.prev_mode:
 
     # neuen Modus merken
     st.session_state.prev_mode = mode
+
 # -------------------- Klick-Handling für manuelle Modi --------------------
-if manual_aec_mode and st.session_state.last_click:
+if manual_aec_mode and st.session_state.last_click is not None:
     st.session_state.manual_aec.append(st.session_state.last_click)
     st.success(f"AEC-Punkt hinzugefügt: {st.session_state.last_click}")
 
-if manual_hema_mode and st.session_state.last_click:
+if manual_hema_mode and st.session_state.last_click is not None:
     st.session_state.manual_hema.append(st.session_state.last_click)
     st.success(f"Hämatoxylin-Punkt hinzugefügt: {st.session_state.last_click}")
 
